@@ -1,6 +1,6 @@
 srcDir = ../../
 srcFile = fileToolset
-testFile = test_createDir
+testFile = test_writeFile
 srcClassPath = ./:$(srcDir)bin/
 
 all: $(testFile).class

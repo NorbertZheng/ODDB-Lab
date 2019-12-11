@@ -1,0 +1,13 @@
+[
+	{
+		"name":"帐号",
+		"package_name":"com.android.account",
+		"check_version":"1.2"
+	},
+	{
+		"name":"系统升级",
+		"package_name":"com.android.osupdate",
+		"check_version":"1.0"
+	},
+]
+

@@ -3,9 +3,9 @@ srcFile = fileToolset
 testFile = test_createFile
 srcClassPath = ./:$(srcDir)bin/
 
-all: test_createFile.class
+all: $(testFile).class
 
-test_createFile.class: $(testFile).java $(srcDir)bin/$(srcFile).class
+$(testFile).class: $(testFile).java $(srcDir)bin/$(srcFile).class
 	javac -cp $(srcClassPath) $(testFile).java
 
 $(srcDir)bin/$(srcFile).class: $(srcDir)Makefile

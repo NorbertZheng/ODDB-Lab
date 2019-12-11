@@ -1,6 +1,6 @@
 srcDir = ../../
 srcFile = fileToolset
-testFile = test_createDir
+testFile = test_readFile
 srcClassPath = ./:$(srcDir)bin/
 
 all: $(testFile).class
@@ -13,7 +13,7 @@ $(srcDir)bin/$(srcFile).class: $(srcDir)Makefile
 	# pwd
 
 clean:
-	rm -rf *.class *.txt ./test/
+	rm -rf *.class *.txt
 
 run: all
 	java -cp $(srcClassPath) $(testFile)
