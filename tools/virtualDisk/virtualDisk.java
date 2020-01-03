@@ -2,16 +2,59 @@ import java.io.File;
 import java.io.RandomAccessFile;
 import java.io.IOException;
 import java.io.FileNotFoundException;
+// local jar
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
 
 public class virtualDisk {
-	final static String config = "../../configure";
+	private String baseLocation;	// the location of the whole project
+	private String configLocation;	// the location of config file
+	private String vdiskLocation;		// the location of vdisk
 
-	private String location;
 	private int diskSize;
 	private int blockSize;
 
-	public virtualDisk() {
+	public virtualDisk(String baseLocation) {
+		JSONArray configure;
 
+		// init location
+		this.baseLocation = baseLocation;
+		this.configLocation = this.baseLocation + File.separator + "configure";
+		System.out.println("configure location: " + this.configLocation);
+
+		// get configure & vdiskLocation
+		configure = jsonToolset.readJsonFile(this.configLocation);
+		this.vdiskLocation = this.baseLocation + File.separator + configure.getJSONObject(0).get("location").toString();
+		System.out.println("vdisk location: " + this.vdiskLocation);
+
+		// check whether vdisk exists
+		File vdiskFile = new File(this.vdiskLocation);
+		if (vdiskFile.exists()) {
+			if (vdiskFile.length() < 512) {
+				System.out.println("vdiskFile size: " + Long.toString(vdiskFile.length()) + ". Prepare to rebuild vdisk!");
+				vdiskFile.delete();
+				this.newVdisk();
+			}
+			getVdiskConfig();
+		} else {
+			this.newVdisk();
+		}
+	}
+
+	/*
+	 * create a new vdisk
+	 * @Ret:
+	 *  flag(boolean)	: whether create vdisk successfully
+	 */
+	private boolean newVdisk() {
+		boolean flag;
+
+		flag = (fileToolset.createFile(this.vdiskLocation) == 0);
+		return flag;
+	}
+
+	private static boolean getVdiskConfig() {
+		return false;
 	}
 
 	/*
@@ -28,7 +71,7 @@ public class virtualDisk {
 		int filePointer = (n_block * this.blockSize) + offset;
 
 		try {
-			RandomAccessFile raf = new RandomAccessFile(new File(this.location), "rw");
+			RandomAccessFile raf = new RandomAccessFile(new File(this.vdiskLocation), "rw");
 
 			if ((filePointer + length) > this.diskSize) {
 				raf.close();
@@ -62,7 +105,7 @@ public class virtualDisk {
 		byte[] data = new byte[length];
 
 		try {
-			RandomAccessFile raf = new RandomAccessFile(new File(this.location), "rw");
+			RandomAccessFile raf = new RandomAccessFile(new File(this.vdiskLocation), "rw");
 
 			if ((filePointer + length) > this.diskSize) {
 				raf.close();
