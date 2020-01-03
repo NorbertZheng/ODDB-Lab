@@ -2,6 +2,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 
 public class fileToolset {
 	private static String encoding = "UTF-8";
@@ -142,6 +143,30 @@ public class fileToolset {
 				return false;
 			}
 		}
+	}
+
+	/*
+	 * parse path(String) to subPath(ArrayList<String>)
+	 * @Args:
+	 *  path		: String
+	 * @Ret:
+	 *  subPath		: ArrayList<String>
+	 */
+	public static ArrayList<String> pathParser(String path) {
+		int length = path.length();
+		String temp = "";
+		ArrayList<String> subPath = new ArrayList<>();
+
+		for (int i = 0; i < length; i++) {
+			while ((i < length) && (!String.valueOf(path.charAt(i)).equals(File.separator))) {
+				temp += path.charAt(i);
+				i++;
+			}
+			subPath.add(temp);
+			temp = "";
+		}
+
+		return subPath;
 	}
 
 }
