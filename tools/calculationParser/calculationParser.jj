@@ -1,0 +1,166 @@
+options {
+	STATIC = false;
+	DEBUG_PARSER = true;
+	UNICODE_INPUT = true;
+}
+
+PARSER_BEGIN(calculationParser)
+import java.io.Reader;
+import java.io.StringReader;
+
+public class calculationParser {
+
+	public static void main(String[] args) {
+		for (String arg : args) {
+			try {
+				System.out.println(evaluate(arg));
+			} catch (ParseException ex) {
+				System.err.println(ex.getMessage());
+			}
+		}
+	}
+
+	public static calculationNode evaluate(String src) throws ParseException {
+		Reader reader = new StringReader(src);
+		return new calculationParser(reader).expr();
+	}
+}
+PARSER_END(calculationParser)
+
+SKIP: {
+	<[" ", "\t", "\r", "\n"]>
+}
+
+TOKEN: {
+		<INTEGER	:	(["0"-"9"])+>
+	|	<IDENTIFIER	:	["a"-"z", "A"-"Z", "_"](["a"-"z", "A"-"Z", "_", "0"-"9"])*>
+}
+
+calculationNode expr():
+{
+	calculationNode expr;
+}
+{
+		expr=expr2() {
+			return expr;
+		}
+}
+
+calculationNode expr2():
+{
+	calculationNode expr2, left, right;
+}
+{
+		left=expr1() (	"+" right=expr1() {
+							expr2 = new calculationNode();
+							expr2.operator = calculationNode.PLUS;
+							expr2.left = left;
+							expr2.right = right;
+
+							left = expr2;
+						}
+					|	"-" right=expr1() {
+							expr2 = new calculationNode();
+							expr2.operator = calculationNode.MINUS;
+							expr2.left = left;
+							expr2.right = right;
+
+							left = expr2;
+						}
+					)* {
+			expr2 = left;
+			return expr2;
+		}
+}
+
+calculationNode expr1():
+{
+	calculationNode expr1, left, right;
+}
+{
+		left=term() (	"*" right=term() {
+							expr1 = new calculationNode();
+							expr1.operator = calculationNode.MULTIPLY;
+							expr1.left = left;
+							expr1.right = right;
+
+							left = expr1;
+						}
+					|	"/" right=term() {
+							expr1 = new calculationNode();
+							expr1.operator = calculationNode.DIVIDE;
+							expr1.left = left;
+							expr1.right = right;
+
+							left = expr1;
+						}
+					)* {
+			expr1 = left;
+			return expr1;
+		}
+}
+
+
+calculationNode term():
+{
+	calculationNode term;
+}
+{
+		term=unary() {
+			return term;
+		}
+}
+
+calculationNode unary():
+{
+	calculationNode left, unary;
+}
+{
+		left=postfix() {
+			return left;
+		}
+	|	"-" left=term() {
+			unary = new calculationNode();
+			unary.operator = calculationNode.MINUS;
+			unary.left = left;
+
+			return unary;
+		}
+}
+
+calculationNode postfix():
+{
+	calculationNode postfix;
+}
+{
+		postfix=primary() {
+			return postfix;
+		}
+}
+
+calculationNode primary():
+{
+	Token leaf;
+	calculationNode primary;
+}
+{
+		leaf=<INTEGER> {
+			primary = new calculationNode();
+			primary.operator = calculationNode.INTEGER;
+			primary.valueInt = Integer.parseInt(leaf.image);
+
+			return primary;
+		}
+	|	leaf=<IDENTIFIER> {
+			primary = new calculationNode();
+			primary.operator = calculationNode.IDENTIFIER;
+			primary.valueString = leaf.image;
+
+			return primary;
+		}
+	|	"(" primary=expr() ")" {
+			return primary;
+		}
+}
+
+
