@@ -1,0 +1,28 @@
+options {
+	STATIC = false;
+	DEBUG_PARSER = true;
+	UNICODE_INPUT = true;
+}
+
+PARSER_BEGIN(SQLParser)
+import java.io.Reader;
+import java.io.StringReader;
+
+public class SQLParser {
+
+	public static void main(String[] args) {
+		for (String arg : args) {
+			try {
+				System.out.println(evaluate(arg));
+			} catch (ParseException ex) {
+				System.err.println(ex.getMessage());
+			}
+		}
+	}
+
+	public static SQLNode evaluate(String src) throws ParseException {
+		Reader reader = new StringReader(src);
+		return new SQLParser(reader).expr();
+	}
+}
+PARSER_END(SQLParser)
