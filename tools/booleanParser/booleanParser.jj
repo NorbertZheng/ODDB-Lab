@@ -1,0 +1,299 @@
+options {
+	STATIC = false;
+	DEBUG_PARSER = true;
+	UNICODE_INPUT = true;
+}
+
+PARSER_BEGIN(booleanParser)
+import java.io.Reader;
+import java.io.StringReader;
+
+public class booleanParser {
+
+	public static void main(String[] args) {
+		for (String arg : args) {
+			try {
+				System.out.println(evaluate(arg));
+			} catch (ParseException ex) {
+				System.err.println(ex.getMessage());
+			}
+		}
+	}
+
+	public static whereNode evaluate(String src) throws ParseException {
+		Reader reader = new StringReader(src);
+		return new booleanParser(reader).expr();
+	}
+}
+PARSER_END(booleanParser)
+
+SPECIAL_TOKEN: {
+		<SPACES		:	([" ", "\t", "\n", "\r", "\f"])+>
+}
+
+TOKEN: {
+		<NOT		:	("n"|"N")("o"|"O")("t"|"T")>
+	|	<AND		:	("a"|"A")("n"|"N")("d"|"D")>
+	|	<OR			:	("o"|"O")("r"|"R")>
+	|	<INTEGER	:	(["0"-"9"])+>
+	|	<IDENTIFIER	:	["a"-"z", "A"-"Z", "_"](["a"-"z", "A"-"Z", "_", "0"-"9"])*>
+}
+
+// STRING
+MORE: {
+		<"\"">						: IN_STRING			// rule1
+}
+<IN_STRING> MORE: {
+		<(~["\"", "\\", "\n", "\r"])+>					// rule2
+	|	<"\\" (["0"-"7"]){3}>							// rule3
+	|	<"\\" ~[]>										// rule4
+}
+<IN_STRING> TOKEN: {
+		<STRING		:	"\"">		: DEFAULT			// rule5
+}
+
+whereNode expr():
+{
+	whereNode expr;
+}
+{
+		expr=expr9() {
+			return expr;
+		}
+}
+
+whereNode expr9():
+{
+	whereNode expr9, left, right;
+}
+{
+		left=expr8() (	<OR> right=expr8() {
+							expr9 = new whereNode();
+							expr9.type = whereNode.AND;
+							expr9.left = left;
+							expr9.right = right;
+
+							left = expr9;
+						}
+					)* {
+			expr9 = left;
+
+			return expr9;
+		}
+}
+
+whereNode expr8():
+{
+	whereNode expr8, left, right;
+}
+{
+		left=expr7() (	<AND> right=expr7() {
+							expr8 = new whereNode();
+							expr8.type = whereNode.AND;
+							expr8.left = left;
+							expr8.right = right;
+
+							left = expr8;
+						}
+					)* {
+			expr8 = left;
+
+			return expr8;
+		}
+}
+
+whereNode expr7():
+{
+	whereNode expr7, left, right;
+}
+{
+		<NOT> left=expr6() {
+			expr7 = new whereNode();
+			expr7.type = whereNode.NOT;
+			expr7.left = left;
+
+			return expr7;
+		}
+	|	expr7=expr6() {
+			return expr7;
+		}
+}
+
+whereNode expr6():
+{
+	whereNode expr6, left, right;
+}
+{
+		left=expr5() [(	">" right=expr5() {
+							expr6 = new whereNode();
+							expr6.type = whereNode.MORE;
+							expr6.left = left;
+							expr6.right = right;
+
+							left = expr6;
+						}
+					|	"<" right=expr5() {
+							expr6 = new whereNode();
+							expr6.type = whereNode.LESS;
+							expr6.left = left;
+							expr6.right = right;
+
+							left = expr6;
+						}
+					|	"=" right=expr5() {
+							expr6 = new whereNode();
+							expr6.type = whereNode.EQUAL;
+							expr6.left = left;
+							expr6.right = right;
+
+							left = expr6;
+						}
+					|	"<>" right=expr5() {
+							expr6 = new whereNode();
+							expr6.type = whereNode.NOTEQUAL;
+							expr6.left = left;
+							expr6.right = right;
+
+							left = expr6;
+						}
+					|	">=" right=expr5() {
+							expr6 = new whereNode();
+							expr6.type = whereNode.MOREEQ;
+							expr6.left = left;
+							expr6.right = right;
+
+							left =  expr6;
+						}
+					|	"<=" right=expr5() {
+							expr6 = new whereNode();
+							expr6.type = whereNode.LESSEQ;
+							expr6.left = left;
+							expr6.right = right;
+
+							left = expr6;
+						}
+					)] {
+			expr6 = left;
+
+			return expr6;
+		}
+}
+
+whereNode expr5():
+{
+	whereNode expr5, left, right;
+}
+{
+		left=expr4() {
+			expr5 = left;
+			return expr5;
+		}
+}
+
+whereNode expr4():
+{
+	whereNode expr4, left, right;
+}
+{
+		left=expr3() {
+			expr4 = left;
+			return expr4;
+		}
+}
+
+whereNode expr3():
+{
+	whereNode expr3, left, right;
+}
+{
+		left=expr2() {
+			expr3 = left;
+			return expr3;
+		}
+}
+
+whereNode expr2():
+{
+	whereNode expr2, left, right;
+}
+{
+		left=expr1() {
+			expr2 = left;
+			return expr2;
+		}
+}
+
+whereNode expr1():
+{
+	whereNode expr1, left, right;
+}
+{
+		left=term() {
+			expr1 = left;
+			return expr1;
+		}
+}
+
+whereNode term():
+{
+	whereNode term;
+}
+{
+		term=unary() {
+			return term;
+		}
+}
+
+whereNode unary():
+{
+	whereNode left, unary;
+}
+{
+		left=postfix() {
+			return left;
+		}
+}
+
+whereNode postfix():
+{
+	whereNode postfix;
+}
+{
+		postfix=primary() {
+			return postfix;
+		}
+}
+
+whereNode primary():
+{
+	Token leaf;
+	whereNode primary;
+}
+{
+		leaf=<INTEGER> {
+			primary = new whereNode();
+			primary.type = whereNode.INTEGER;
+			primary.valueInt = Integer.parseInt(leaf.image);
+
+			return primary;
+		}
+	|	leaf=<STRING> {
+			primary = new whereNode();
+			primary.type = whereNode.STRING;
+			primary.valueString = leaf.image.substring(1, leaf.image.length() - 1);
+
+			return primary;
+		}
+	|	leaf=<IDENTIFIER> {
+			primary = new whereNode();
+			primary.type = whereNode.IDENTIFIER;
+			primary.valueString = leaf.image;
+
+			return primary;
+		}
+	|	"(" primary=expr() ")" {
+			return primary;
+		}
+}
+
+
