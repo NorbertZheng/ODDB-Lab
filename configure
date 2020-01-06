@@ -1,5 +1,8 @@
 [
 	{
-		"location":"./data/data.sqlite"
+		"location":"./data/data.sqlite",
+		"diskSize":"33554432",
+		"blockSize":"512",
+		"entrySize":"2"
 	},
 ]
