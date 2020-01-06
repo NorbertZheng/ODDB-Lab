@@ -7,12 +7,17 @@ import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 public class virtualDisk {
+	final static int BITS_OF_BYTE = 8, N_OF_CONFIG_BLOCK = 1;
+	final static String charSet = "utf-8";
+
 	private String baseLocation;	// the location of the whole project
 	private String configLocation;	// the location of config file
 	private String vdiskLocation;		// the location of vdisk
 
 	private int diskSize;
 	private int blockSize;
+	private int entrySize;
+	private int dataOffset;
 
 	public virtualDisk(String baseLocation) {
 		JSONArray configure;
@@ -26,6 +31,10 @@ public class virtualDisk {
 		configure = jsonToolset.readJsonFile(this.configLocation);
 		this.vdiskLocation = this.baseLocation + File.separator + configure.getJSONObject(0).get("location").toString();
 		System.out.println("vdisk location: " + this.vdiskLocation);
+		this.diskSize = Integer.parseInt(configure.getJSONObject(0).get("diskSize").toString());
+		this.blockSize = Integer.parseInt(configure.getJSONObject(0).get("blockSize").toString());
+		this.entrySize = Integer.parseInt(configure.getJSONObject(0).get("entrySize").toString());
+		this.dataOffset = (1 << (this.entrySize * virtualDisk.BITS_OF_BYTE)) + virtualDisk.N_OF_CONFIG_BLOCK;
 
 		// check whether vdisk exists
 		File vdiskFile = new File(this.vdiskLocation);
@@ -48,13 +57,134 @@ public class virtualDisk {
 	 */
 	private boolean newVdisk() {
 		boolean flag;
+		byte[] data = new byte[512];
 
 		flag = (fileToolset.createFile(this.vdiskLocation) == 0);
 		return flag;
 	}
 
-	private static boolean getVdiskConfig() {
+	private boolean getVdiskConfig() {
 		return false;
+	}
+
+	/*
+	 * convert int to byte[]
+	 * @Args:
+	 *  src(int)		: source int
+	 * @Ret:
+	 *  data(byte[])	: corresponding byte[]
+	 */
+	public static byte[] int2ByteArray(int src) {
+		byte[] data = new byte[4];
+
+		data[0] = (byte) (src & 0xff);
+		data[1] = (byte) ((src >> 8) & 0xff);
+		data[2] = (byte) ((src >> 16) & 0xff);
+		data[3] = (byte) ((src >> 24) & 0xff);
+
+		return data;
+	}
+
+	/*
+	 * convert byte[] to int
+	 * @Args:
+	 *  src(byte[])		: source byte[]
+	 * @Ret:
+	 *  data(int)		: corresponding int
+	 */
+	public static int byteArray2Int(byte[] src) {
+		int data = 0;
+
+		data = ((src[3] << 24) & 0xff000000) + ((src[2] << 16) & 0xff0000) + ((src[1] << 8) & 0xff00) + (src[0] & 0xff);
+
+		return data;
+	}
+
+	/*
+	 * convert short to byte[]
+	 * @Args:
+	 *  src(short)		: source short
+	 * @Ret:
+	 *  data(byte[])	: corresponding byte[]
+	 */
+	public static byte[] short2ByteArray(short src) {
+		byte[] data = new byte[2];
+
+		data[0] = (byte) (src & 0xff);
+		data[1] = (byte) ((src >> 8) & 0xff);
+
+		return data;
+	}
+
+	/*
+	 * convert byte[] to short
+	 * @Args:
+	 *  src(byte[])		: source byte[]
+	 * @Ret:
+	 *  data(short)		: corresponding short
+	 */
+	public static short byteArray2Short(byte[] src) {
+		short data = 0;
+
+		data = (short) (((src[1] << 8) & 0xff00) + (src[0] & 0xff));
+
+		return data;
+	}
+
+	/*
+	 * convert string to byte[]
+	 * @Args:
+	 *  src(String)		: source string
+	 * @Ret:
+	 *  data(byte[])	: corresponding byte[]
+	 */
+	public static byte[] string2ByteArray(String src) {
+		byte[] data;
+
+		try {
+			data = src.getBytes(virtualDisk.charSet);
+		} catch (Exception ex) {
+			System.err.println(ex.getMessage());
+			return null;
+		}
+
+		return data;
+	}
+
+	/*
+	 * convert byte[] to string
+	 * @Args:
+	 *  src(byte[])		: source byte[]
+	 * @Ret:
+	 *  data(String)	: corresponding string
+	 */
+	public static String byteArray2String(byte[] src) {
+		String data;
+
+		try {
+			data = new String(src, virtualDisk.charSet);
+		} catch (Exception ex) {
+			System.err.println(ex.getMessage());
+			return null;
+		}
+
+		return data;
+	}
+
+	public static int unsignedShort2Int(short src) {
+		int data;
+
+		data = ((int) src) & 0xffff;
+
+		return data;
+	}
+
+	public static short int2UnsignedShort(int src) {
+		short data;
+
+		data = (short) (src & 0xffff);
+
+		return data;
 	}
 
 	/*
