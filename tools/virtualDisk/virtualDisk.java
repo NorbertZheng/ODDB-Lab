@@ -8,6 +8,7 @@ import net.sf.json.JSONObject;
 
 public class virtualDisk {
 	final static int BITS_OF_BYTE = 8, N_OF_CONFIG_BLOCK = 1;
+	final static int OFFSET_DISKSIZE = 0, OFFSET_BLOCKSIZE = 4, OFFSET_ENTRYSIZE = 8, OFFSET_DATAOFFSET = 12;
 	final static String charSet = "utf-8";
 
 	private String baseLocation;	// the location of the whole project
@@ -34,7 +35,7 @@ public class virtualDisk {
 		this.diskSize = Integer.parseInt(configure.getJSONObject(0).get("diskSize").toString());
 		this.blockSize = Integer.parseInt(configure.getJSONObject(0).get("blockSize").toString());
 		this.entrySize = Integer.parseInt(configure.getJSONObject(0).get("entrySize").toString());
-		this.dataOffset = (1 << (this.entrySize * virtualDisk.BITS_OF_BYTE)) + virtualDisk.N_OF_CONFIG_BLOCK;
+		this.dataOffset = (((1 << (this.entrySize * virtualDisk.BITS_OF_BYTE)) * this.entrySize) / this.blockSize) + virtualDisk.N_OF_CONFIG_BLOCK;
 
 		// check whether vdisk exists
 		File vdiskFile = new File(this.vdiskLocation);
@@ -56,15 +57,196 @@ public class virtualDisk {
 	 *  flag(boolean)	: whether create vdisk successfully
 	 */
 	private boolean newVdisk() {
-		boolean flag;
-		byte[] data = new byte[512];
+		File vdiskFile;
+		byte[] temp;
+		byte[] data = new byte[this.blockSize];
 
-		flag = (fileToolset.createFile(this.vdiskLocation) == 0);
-		return flag;
+		if (fileToolset.createFile(this.vdiskLocation) != 0) {
+			return false;
+		}
+
+		// write configSector
+		virtualDisk.clearByteArray(data);
+		if (!virtualDisk.byteArrayCopy(data, virtualDisk.int2ByteArray(this.diskSize), virtualDisk.OFFSET_DISKSIZE)) {
+			vdiskFile = new File(this.vdiskLocation);
+			vdiskFile.delete();
+			return false;
+		}
+		if (!virtualDisk.byteArrayCopy(data, virtualDisk.int2ByteArray(this.blockSize), virtualDisk.OFFSET_BLOCKSIZE)) {
+			vdiskFile = new File(this.vdiskLocation);
+			vdiskFile.delete();
+			return false;
+		}
+		if (!virtualDisk.byteArrayCopy(data, virtualDisk.int2ByteArray(this.entrySize), virtualDisk.OFFSET_ENTRYSIZE)) {
+			vdiskFile = new File(this.vdiskLocation);
+			vdiskFile.delete();
+			return false;
+		}
+		if (!virtualDisk.byteArrayCopy(data, virtualDisk.int2ByteArray(this.dataOffset), virtualDisk.OFFSET_DATAOFFSET)) {
+			vdiskFile = new File(this.vdiskLocation);
+			vdiskFile.delete();
+			return false;
+		}
+		if (!this.write(0, 0, data, data.length)) {
+			vdiskFile = new File(this.vdiskLocation);
+			vdiskFile.delete();
+			return false;
+		}
+
+		// write FAT-like entry
+		virtualDisk.clearByteArray(data);
+		for (int n_block = 0; n_block < this.diskSize / this.blockSize; n_block++) {
+			// get the FAT-like entry
+			if (n_block < this.dataOffset) {
+				temp = virtualDisk.short2ByteArray((short) 0x0000);
+			} else {
+				temp = virtualDisk.short2ByteArray(virtualDisk.int2UnsignedShort(n_block));
+			}
+			// byte array copy
+			if (!virtualDisk.byteArrayCopy(data, temp, (n_block * this.entrySize) % this.blockSize)) {
+				vdiskFile = new File(this.vdiskLocation);
+				vdiskFile.delete();
+				return false;
+			}
+			// whether write vdisk
+			if ((((n_block + 1) * this.entrySize) % this.blockSize) == 0) {
+				// System.out.println(virtualDisk.byteArray2HexString(data));
+				if (!this.write(((n_block * this.entrySize) / this.blockSize) + virtualDisk.N_OF_CONFIG_BLOCK, 0, data, data.length)) {
+					vdiskFile = new File(this.vdiskLocation);
+					vdiskFile.delete();
+					return false;
+				}
+				// clear up data
+				virtualDisk.clearByteArray(data);
+			}
+		}
+
+		// write data sector
+		virtualDisk.clearByteArray(data);
+		for (int n_block = this.dataOffset; n_block < this.diskSize / this.blockSize; n_block++) {
+			if (!this.write(n_block, 0, data, data.length)) {
+				vdiskFile = new File(this.vdiskLocation);
+				vdiskFile.delete();
+				return false;
+			}
+		}
+
+		System.out.println("newVdisk: build successfully!");
+		return true;
 	}
 
 	private boolean getVdiskConfig() {
-		return false;
+		byte[] data;
+		byte[] temp = new byte[4];
+
+		data = this.read(0, 0, this.blockSize);
+		// get diskSize
+		if (!virtualDisk.byteArrayIntercept(temp, data, virtualDisk.OFFSET_DISKSIZE)) {
+			return false;
+		} else {
+			this.diskSize = virtualDisk.byteArray2Int(temp);
+			System.out.println(virtualDisk.byteArray2Int(temp));
+		}
+		// get blockSize
+		if (!virtualDisk.byteArrayIntercept(temp, data, virtualDisk.OFFSET_BLOCKSIZE)) {
+			return false;
+		} else {
+			this.blockSize = virtualDisk.byteArray2Int(temp);
+			System.out.println(virtualDisk.byteArray2Int(temp));
+		}
+		// get entrySize
+		if (!virtualDisk.byteArrayIntercept(temp, data, virtualDisk.OFFSET_ENTRYSIZE)) {
+			return false;
+		} else {
+			this.entrySize = virtualDisk.byteArray2Int(temp);
+			System.out.println(virtualDisk.byteArray2Int(temp));
+		}
+		// get dataOffset
+		if (!virtualDisk.byteArrayIntercept(temp, data, virtualDisk.OFFSET_DATAOFFSET)) {
+			return false;
+		} else {
+			this.dataOffset = virtualDisk.byteArray2Int(temp);
+			System.out.println(virtualDisk.byteArray2Int(temp));
+		}
+
+		return true;
+	}
+
+	/*
+	 * convert byte[] to hex string
+	 * @Args:
+	 *  src(byte[])		: source byte[]
+	 * @Ret:
+	 *  data(String)	: hex string
+	 */
+	public static String byteArray2HexString(byte[] src) {
+		StringBuffer stringBuffer = new StringBuffer(src.length);
+		String data;
+
+		for (int i = 0; i < src.length; i++) {
+			data = Integer.toHexString(0xff & src[i]);
+			if (data.length() < 2) {
+				stringBuffer.append(0);
+			}
+			stringBuffer.append(data.toUpperCase());
+		}
+
+		return stringBuffer.toString();
+	}
+
+	/*
+	 * intercept byte[] to byte[]
+	 * @Args:
+	 *  des(byte[])		: target byte[]
+	 *  src(byte[])		: source byte[]
+	 *  offset(int)		: the start source of target byte[]
+	 * @Ret:
+	 *  flag(boolean)	: whether copy successfully
+	 */
+	public static boolean byteArrayIntercept(byte[] des, byte[] src, int offset) {
+		if (des.length + offset >= src.length) {
+			return false;
+		} else {
+			for (int i = 0; i < des.length; i++) {
+				des[i] = src[offset + i];
+			}
+			return true;
+		}
+	}
+
+	/*
+	 * copy byte[] into byte[]
+	 * @Args:
+	 *  des(byte[])		: target byte[]
+	 *  src(byte[])		: source byte[]
+	 *  offset(int)		: the start offset of source byte[]
+	 * @Ret:
+	 *  flag(boolean)	: whether copy successfully
+	 */
+	public static boolean byteArrayCopy(byte[] des, byte[] src, int offset) {
+		if (des.length < src.length + offset) {
+			return false;
+		} else {
+			for (int i = 0; i < src.length; i++) {
+				des[offset + i] = src[i];
+			}
+			return true;
+		}
+	}
+
+	/*
+	 * clear up byte[]
+	 * @Args:
+	 *  src(byte[])		: source byte[]
+	 */
+	public static void clearByteArray(byte[] src) {
+		int length = src.length;
+
+		for (int i = 0; i < length; i++) {
+			src[i] = 0;
+		}
+
+		return;
 	}
 
 	/*
