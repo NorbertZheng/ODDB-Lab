@@ -135,6 +135,13 @@ public class virtualDisk {
 		return true;
 	}
 
+	/*
+	 * get config from vdisk
+	 * @Args:
+	 *  None
+	 * @Ret:
+	 *  flag(boolean)	: whether get config successfully
+	 */
 	private boolean getVdiskConfig() {
 		byte[] data;
 		byte[] temp = new byte[4];
@@ -173,6 +180,21 @@ public class virtualDisk {
 	}
 
 	/*
+	 * get the next block from FAT-like table
+	 * @Args:
+	 *  n_block(int)	: source block
+	 * @Ret:
+	 *  n_nextBlock(int): next block
+	 */
+	public int getNextBlock(int n_block) {
+		int n_nextBlock;
+
+		n_nextBlock = virtualDisk.unsignedShort2Int(virtualDisk.byteArray2Short(this.read(virtualDisk.N_OF_CONFIG_BLOCK + ((n_block * this.entrySize) / this.blockSize), (n_block * this.entrySize) % this.blockSize, this.entrySize)));
+
+		return n_nextBlock;
+	}
+
+	/*
 	 * convert byte[] to hex string
 	 * @Args:
 	 *  src(byte[])		: source byte[]
@@ -180,18 +202,23 @@ public class virtualDisk {
 	 *  data(String)	: hex string
 	 */
 	public static String byteArray2HexString(byte[] src) {
-		StringBuffer stringBuffer = new StringBuffer(src.length);
+		StringBuffer stringBuffer;
 		String data;
 
-		for (int i = 0; i < src.length; i++) {
-			data = Integer.toHexString(0xff & src[i]);
-			if (data.length() < 2) {
-				stringBuffer.append(0);
+		if (src == null) {
+			return null;
+		} else {
+			stringBuffer = new StringBuffer(src.length)
+			for (int i = 0; i < src.length; i++) {
+				data = Integer.toHexString(0xff & src[i]);
+				if (data.length() < 2) {
+					stringBuffer.append(0);
+				}
+				stringBuffer.append(data.toUpperCase());
 			}
-			stringBuffer.append(data.toUpperCase());
-		}
 
-		return stringBuffer.toString();
+			return stringBuffer.toString();
+		}
 	}
 
 	/*
@@ -204,7 +231,9 @@ public class virtualDisk {
 	 *  flag(boolean)	: whether copy successfully
 	 */
 	public static boolean byteArrayIntercept(byte[] des, byte[] src, int offset) {
-		if (des.length + offset >= src.length) {
+		if ((des == null) || (src == null)) {
+			return false;
+		} else if (des.length + offset >= src.length) {
 			return false;
 		} else {
 			for (int i = 0; i < des.length; i++) {
@@ -224,7 +253,9 @@ public class virtualDisk {
 	 *  flag(boolean)	: whether copy successfully
 	 */
 	public static boolean byteArrayCopy(byte[] des, byte[] src, int offset) {
-		if (des.length < src.length + offset) {
+		if ((des == null) || (src == null)) {
+			return false;
+		}else if (des.length < src.length + offset) {
 			return false;
 		} else {
 			for (int i = 0; i < src.length; i++) {
@@ -240,13 +271,14 @@ public class virtualDisk {
 	 *  src(byte[])		: source byte[]
 	 */
 	public static void clearByteArray(byte[] src) {
-		int length = src.length;
-
-		for (int i = 0; i < length; i++) {
-			src[i] = 0;
+		if (src == null) {
+			return;
+		} else {
+			for (int i = 0; i < src.length; i++) {
+				src[i] = 0;
+			}
+			return;
 		}
-
-		return;
 	}
 
 	/*
@@ -277,9 +309,13 @@ public class virtualDisk {
 	public static int byteArray2Int(byte[] src) {
 		int data = 0;
 
-		data = ((src[3] << 24) & 0xff000000) + ((src[2] << 16) & 0xff0000) + ((src[1] << 8) & 0xff00) + (src[0] & 0xff);
+		if (src == null) {
+			return 0;
+		} else {
+			data = ((src[3] << 24) & 0xff000000) + ((src[2] << 16) & 0xff0000) + ((src[1] << 8) & 0xff00) + (src[0] & 0xff);
 
-		return data;
+			return data;
+		}
 	}
 
 	/*
@@ -308,9 +344,13 @@ public class virtualDisk {
 	public static short byteArray2Short(byte[] src) {
 		short data = 0;
 
-		data = (short) (((src[1] << 8) & 0xff00) + (src[0] & 0xff));
+		if (src == null) {
+			return ((short) 0x0000);
+		} else {
+			data = (short) (((src[1] << 8) & 0xff00) + (src[0] & 0xff));
 
-		return data;
+			return data;
+		}
 	}
 
 	/*
@@ -353,6 +393,13 @@ public class virtualDisk {
 		return data;
 	}
 
+	/*
+	 * convert unsigned short to int
+	 * @Args:
+	 *  src(short)		: source short
+	 * @Ret:
+	 *  data(int)		: corresponding int
+	 */
 	public static int unsignedShort2Int(short src) {
 		int data;
 
@@ -361,6 +408,13 @@ public class virtualDisk {
 		return data;
 	}
 
+	/*
+	 * convert int to unsigned short
+	 * @Args:
+	 *  src(int)		: source int
+	 * @Ret:
+	 *  data(short)		: corresponding unsigned short
+	 */
 	public static short int2UnsignedShort(int src) {
 		short data;
 
