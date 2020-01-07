@@ -1,6 +1,7 @@
 [
 	{
 		"location":"./data/data.sqlite",
+		"systemTable":"./data/systemTable",
 		"diskSize":"33554432",
 		"blockSize":"512",
 		"entrySize":"2"
