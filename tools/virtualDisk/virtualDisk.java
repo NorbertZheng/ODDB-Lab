@@ -13,6 +13,7 @@ public class virtualDisk {
 	final static int CONFIG_BLOCK_FLAG = 0x0000, FREE_BLOCK_FLAG = 0x0001;
 	final static int BYTES_OF_STRING_DATA = 20, BYTES_OF_INTEGER_DATA = 4;
 	final static String CLASS_TABLE = "CLASS_TABLE", ATTRIBUTE_TABLE = "ATTRIBUTE_TABLE", DEPUTY_TABLE = "DEPUTY_TABLE", DEPUTYRULE_TABLE = "DEPUTYRULE_TABLE", OBJECT_TABLE = "OBJECT_TABLE", SWITCHING_TABLE = "SWITCHING_TABLE", BIPOINTER_TABLE = "BIPOINTER_TABLE";
+	final static int ATTRTYPE_STRING = 0, ATTRTYPE_INTEGER = 1;
 	final static String charSet = "utf-8";
 
 	private String baseLocation;		// the location of the whole project
@@ -874,6 +875,198 @@ public class virtualDisk {
 		block = virtualDisk.N_OF_CONFIG_BLOCK + ((n_block * this.entrySize) / this.blockSize);
 
 		return block;
+	}
+
+	private ArrayList<Integer> getTypeList(ClassStruct src) {
+		Attribute child;
+		ArrayList<Integer> data;
+
+		if (src == null) {
+			return null;
+		} else {
+			data = new ArrayList<Integer>();
+			for (int i = 0; i < src.children.size(); i++) {
+				child = src.children.get(i);
+				if (child.attrType == virtualDisk.ATTRTYPE_INTEGER) {
+					data.add(virtualDisk.ATTRTYPE_INTEGER);
+				} else if (child.attrType == virtualDisk.ATTRTYPE_STRING) {
+					data.add(virtualDisk.ATTRTYPE_STRING);
+				} else {
+					return null;
+				}
+			}
+			return data;
+		}
+	}
+
+	private ArrayList<Integer> getLengthList(ClassStruct src) {
+		Attribute child;
+		ArrayList<Integer> data;
+
+		if (src == null) {
+			return null;
+		} else {
+			data = new ArrayList<Integer>();
+			for (int i = 0; i < src.children.size(); i++) {
+				child = src.children.get(i);
+				if (child.attrType == virtualDisk.ATTRTYPE_INTEGER) {
+					data.add(virtualDisk.BYTES_OF_INTEGER_DATA);
+				} else if (child.attrType == virtualDisk.ATTRTYPE_STRING) {
+					data.add(virtualDisk.BYTES_OF_STRING_DATA);
+				} else {
+					return null;
+				}
+			}
+			return data;
+		}
+	}
+
+	private boolean writeOneTuple(ArrayList<Integer> lengthList, ArrayList<Integer> typeList, int n_block, int offset, ArrayList<String> src) {
+		int length = 0, count = 0;
+		int n_nextBlock;
+		byte[] temp, data, left, right;
+
+		if ((lengthList.size() != typeList.size()) || (lengthList.size() != src.size()) || (src.size() != typeList.size())) {
+			return false;
+		} else if (src == null) {
+			return false;
+		} else {
+			// get one tuple data
+			for (int i = 0; i < lengthList.size(); i++) {
+				length += lengthList.get(i).intValue();
+			}
+			data = new byte[length];
+			for (int i = 0; i < lengthList.size(); i++) {
+				if (typeList.get(i).intValue() == virtualDisk.ATTRTYPE_STRING) {
+					temp = new byte[lengthList.get(i).intValue()];
+					// clear up temp
+					clearByteArray(temp);
+					if (!virtualDisk.byteArrayCopy(temp, virtualDisk.string2ByteArray(src.get(i)), 0)) {
+							return false;
+					}
+				} else if (typeList.get(i).intValue() == virtualDisk.ATTRTYPE_INTEGER) {
+					if (!virtualDisk.canParseInt(src.get(i))) {
+						return false;
+					} else {
+						temp = virtualDisk.int2ByteArray(Integer.parseInt(src.get(i)));
+					}
+				}
+				if (!virtualDisk.byteArrayCopy(data, temp, count)) {
+					return false;
+				}
+				count += lengthList.get(i).intValue();
+			}
+			// check offset + length
+			if (length + offset > this.blockSize) {
+				left = new byte[this.blockSize - offset];
+				right = new byte[length + offset - this.blockSize];
+
+				if (!byteArrayIntercept(left, data, 0)) {
+					return false;
+				}
+				if (!byteArrayIntercept(right, data, this.blockSize - offset)) {
+					return false;
+				}
+				// need read second block
+				n_nextBlock = this.getNextBlock(n_block);
+				if ((n_nextBlock == n_block) || (n_nextBlock == virtualDisk.FREE_BLOCK_FLAG) || (n_nextBlock == virtualDisk.CONFIG_BLOCK_FLAG)) {
+					n_nextBlock = this.getFreeBlock();
+					if (!this.setNextBlock(n_block, n_nextBlock)) {
+						return false;
+					}
+				}
+				// write to vdisk
+				if (!this.write(n_block, offset, left, left.length)) {
+					return false;
+				}
+				if (!this.write(n_nextBlock, 0, right, right.length)) {
+					return false;
+				}
+
+				return true;
+			} else {
+				if (!this.write(n_block, offset, data, data.length)) {
+					return false;
+				}
+
+				return true;
+			}
+		}
+	}
+
+	// forget 1 data > 1 block
+	private ArrayList<String> getOneTuple(ArrayList<Integer> lengthList, ArrayList<Integer> typeList, int n_block, int offset) {
+		int length = 0, count = 0, stringLength;
+		int n_nextBlock;
+		byte[] left, right, data, temp, tempString;
+		ArrayList<String> result;
+
+		if (lengthList.size() != typeList.size()) {
+			return null;
+		} else {
+			result = new ArrayList<String>();
+			// get one tuple data
+			for (int i = 0; i < lengthList.size(); i++) {
+				length += lengthList.get(i).intValue();
+			}
+			data = new byte[length];
+			if (length + offset > this.blockSize) {
+				// need read second block
+				n_nextBlock = this.getNextBlock(n_block);
+				if ((n_nextBlock == n_block) || (n_nextBlock == virtualDisk.FREE_BLOCK_FLAG) || (n_nextBlock == virtualDisk.CONFIG_BLOCK_FLAG)) {
+					return null;
+				}
+				left = this.read(n_block, offset, this.blockSize - offset);
+				right = this.read(n_nextBlock, 0, length + offset - this.blockSize);
+				if (!virtualDisk.byteArrayCopy(data, left, 0)) {
+					return null;
+				}
+				if (!virtualDisk.byteArrayCopy(data, right, this.blockSize - offset)) {
+					return null;
+				}
+			} else {
+				data = this.read(n_block, offset, length);
+			}
+
+			for (int i = 0; i < lengthList.size(); i++) {
+				temp = new byte[lengthList.get(i).intValue()];
+				if (!virtualDisk.byteArrayIntercept(temp, data, count)) {
+					return null;
+				}
+				count += temp.length;
+				if (typeList.get(i).intValue() == virtualDisk.ATTRTYPE_STRING) {
+					for (stringLength = 0; stringLength < virtualDisk.BYTES_OF_STRING_DATA; stringLength++) {
+						if (temp[stringLength] == ((byte) 0x00)) {
+							break;
+						}
+					}
+					tempString = new byte[stringLength];
+					if (!virtualDisk.byteArrayIntercept(tempString, temp, 0)) {
+						return null;
+					}
+					result.add(virtualDisk.byteArray2String(tempString));
+				} else if (typeList.get(i).intValue() == virtualDisk.ATTRTYPE_INTEGER) {
+					result.add(Integer.toString(virtualDisk.byteArray2Int(temp)));
+				}
+			}
+
+			return result;
+		}
+	}
+
+	/*
+	 * string can parse to int
+	 * @Args:
+	 *  src(String)		: source string
+	 * @Ret:
+	 *  flag(boolean)	: whether can string parse to int
+	 */
+	public static boolean canParseInt(String src) {
+		if (src == null) {
+			return false;
+		} else {
+			return src.matches("\\d+");
+		}
 	}
 
 	/*

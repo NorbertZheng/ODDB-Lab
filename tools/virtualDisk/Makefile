@@ -1,7 +1,7 @@
 src = virtualDisk
 dep = $(src).java ../fileToolset/bin/fileToolset.class ../jsonToolset/bin/jsonToolset.class
 jarPath = ../../lib/json/json-lib-2.4-jdk15.jar:../../lib/json/commons-beanutils-1.8.0.jar:../../lib/json/commons-collections-3.2.1.jar:../../lib/json/commons-lang-2.5.jar:../../lib/json/commons-logging-1.1.1.jar:../../lib/json/ezmorph-1.0.6.jar
-srcClassPath = ./:$(srcDir)bin/:$(jarPath):../fileToolset/bin/:../jsonToolset/bin/:./src
+srcClassPath = ./:$(srcDir)bin/:$(jarPath):../fileToolset/bin/:../jsonToolset/bin/:./src/:./src/totem/
 destClassPath = ./bin/
 
 all: $(destClassPath)$(src).class
