@@ -892,6 +892,13 @@ public class virtualDisk {
 		return block;
 	}
 
+	/*
+	 * get type list of class
+	 * @Args:
+	 *  src(ClassStruct)			: src class struct
+	 * @Ret:
+	 *  data(ArrayList<Integer>)	: corresponding type list
+	 */
 	public ArrayList<Integer> getTypeList(ClassStruct src) {
 		Attribute attr;
 		ArrayList<Integer> data;
@@ -914,6 +921,13 @@ public class virtualDisk {
 		}
 	}
 
+	/*
+	 * get length list of class
+	 * @Args:
+	 *  src(ClassStruct)			: src class struct
+	 * @Ret:
+	 *  data(ArrayList<Integer>)	: corresponding length list
+	 */
 	public ArrayList<Integer> getLengthList(ClassStruct src) {
 		Attribute attr;
 		ArrayList<Integer> data;
@@ -936,6 +950,17 @@ public class virtualDisk {
 		}
 	}
 
+	/*
+	 * write one tuple into class data, forget 1 data > 1 block
+	 * @Args:
+	 *  lengthList(ArrayList<Integer>)	: attr-length list
+	 *  typeList(ArrayList<Integer>)	: attr-type list
+	 *  n_block(int)					: n_block of vdisk
+	 *  offset(int)						: offset in block
+	 *  src(ArrayList<String>)			: tuple to write
+	 * @Ret:
+	 *  flag(boolean)					: whether write tuple successfully
+	 */
 	public boolean writeOneTuple(ArrayList<Integer> lengthList, ArrayList<Integer> typeList, int n_block, int offset, ArrayList<String> src) {
 		int length = 0, count = 0;
 		int n_nextBlock;
@@ -1015,7 +1040,16 @@ public class virtualDisk {
 		}
 	}
 
-	// forget 1 data > 1 block
+	/*
+	 * read one tuple from class data, forget 1 data > 1 block
+	 * @Args:
+	 *  lengthList(ArrayList<Integer>)	: attr-length list
+	 *  typeList(ArrayList<Integer>)	: attr-type list
+	 *  n_block(int)					: n_block of vdisk
+	 *  offset(int)						: offset in block
+	 * @Ret:
+	 *  result(ArrayList<String>)		: tuple data
+	 */
 	public ArrayList<String> readOneTuple(ArrayList<Integer> lengthList, ArrayList<Integer> typeList, int n_block, int offset) {
 		int length = 0, count = 0, stringLength;
 		int n_nextBlock;
@@ -1337,7 +1371,7 @@ public class virtualDisk {
 	 * @Ret:
 	 *  flag(boolean)	: whether write successfully
 	 */
-	public boolean write(int n_block, int offset, byte[] data, int length) {
+	private boolean write(int n_block, int offset, byte[] data, int length) {
 		int filePointer = (n_block * this.blockSize) + offset;
 
 		try {
@@ -1370,7 +1404,7 @@ public class virtualDisk {
 	 * @Ret:
 	 *  data(byte[])	: read data
 	 */
-	public byte[] read(int n_block, int offset, int length) {
+	private byte[] read(int n_block, int offset, int length) {
 		int filePointer = (n_block * this.blockSize) + offset;
 		byte[] data = new byte[length];
 
@@ -1395,7 +1429,15 @@ public class virtualDisk {
 		}
 	}
 
-	public boolean ocupyOneTuple(int n_block, int index) {
+	/*
+	 * ocupy one tuple
+	 * @Args:
+	 *  n_block(int)	: config block
+	 *  index(int)		: tuple index
+	 * @Ret:
+	 *  flag(boolean)	: whether ocupy successfully
+	 */
+	private boolean ocupyOneTuple(int n_block, int index) {
 		byte[] data = new byte[1];
 
 		if ((this.getNextBlock(n_block) == virtualDisk.CONFIG_BLOCK_FLAG) || (this.getNextBlock(n_block) == virtualDisk.FREE_BLOCK_FLAG)) {
@@ -1428,7 +1470,15 @@ public class virtualDisk {
 		}
 	}
 
-	public boolean freeOneTuple(int n_block, int index) {
+	/*
+	 * free one tuple
+	 * @Args:
+	 *  n_block(int)	: config block
+	 *  index(int)		: tuple index
+	 * @Ret:
+	 *  flag(boolean)	: whether free successfully
+	 */
+	private boolean freeOneTuple(int n_block, int index) {
 		byte[] data;
 
 		if ((this.getNextBlock(n_block) == virtualDisk.CONFIG_BLOCK_FLAG) || (this.getNextBlock(n_block) == virtualDisk.FREE_BLOCK_FLAG)) {
@@ -1461,7 +1511,14 @@ public class virtualDisk {
 		}
 	}
 
-	public int getFreeTuple(int n_block) {
+	/*
+	 * get free tuple index
+	 * @Args:
+	 *  n_block(int)	: config block
+	 * @Ret:
+	 *  index(int)		: free tuple index
+	 */
+	private int getFreeTuple(int n_block) {
 		byte[] data;
 
 		if ((this.getNextBlock(n_block) == virtualDisk.CONFIG_BLOCK_FLAG) || (this.getNextBlock(n_block) == virtualDisk.FREE_BLOCK_FLAG)) {
@@ -1506,7 +1563,15 @@ public class virtualDisk {
 		}
 	}
 
-	public int getNextOcupiedTuple(int n_block, int index) {
+	/*
+	 * get next ocupied tuple
+	 * @Args:
+	 *  n_block(int)	: config block
+	 *  index(int)		: current index
+	 * @Ret:
+	 *  nextIndex(int)	: nextOcupiedTuple index
+	 */
+	private int getNextOcupiedTuple(int n_block, int index) {
 		byte[] data;
 		int nextIndex;
 
@@ -1535,7 +1600,14 @@ public class virtualDisk {
 		}
 	}
 
-	public int fakeOffset2RealOffset() {
+	/*
+	 * convert fakeBlockOffset to realBlockOffset, before Next()
+	 * @Args:
+	 *  None
+	 * @Ret:
+	 *  realBlockOffset(int)	: real block offset
+	 */
+	private int fakeOffset2RealOffset() {
 		int classId, tupleLength = 0, realBlockOffset;
 		ArrayList<Integer> lengthList;
 		ClassStruct classStruct;
@@ -1556,8 +1628,14 @@ public class virtualDisk {
 		return realBlockOffset;
 	}
 
-	// before Next()
-	public int fakeBlock2RealBlock() {
+	/*
+	 * convert fakeBlockNum to realBlockNum, before Next()
+	 * @Args:
+	 *  None
+	 * @Ret:
+	 *  realBlockNum(int)	: real block num
+	 */
+	private int fakeBlock2RealBlock() {
 		int n_block, n_nextBlock, classId, tupleLength = 0, realBlockNum, realBlockOffset;
 		ArrayList<Integer> lengthList;
 		ClassStruct classStruct;
@@ -1593,6 +1671,352 @@ public class virtualDisk {
 				n_block = n_nextBlock;
 			}
 			return n_block;
+		}
+	}
+
+	/*
+	 * get free id from table
+	 * @Args:
+	 *  tableName(String)	: system table name
+	 * @Ret:
+	 *  freeId(int)			: free id
+	 */
+	private int getFreeId(String tableName) {
+		int freeId, i;
+
+		if (tableName.equals(virtualDisk.CLASS_TABLE)) {
+			for (freeId = 0; freeId < virtualDisk.MAX_INTEGER; freeId++) {
+				if (this.systemClassTable.size() == 0) {
+					freeId = 0;
+					break;
+				} else {
+					for (i = 0; i < this.systemClassTable.size(); i++) {
+						if (this.systemClassTable.get(i).classId == freeId) {
+							break;
+						}
+					}
+					if (i == this.systemClassTable.size()) {
+						break;
+					} else {
+						continue;
+					}
+				}
+			}
+
+			return freeId;
+		} else if (tableName.equals(virtualDisk.ATTRIBUTE_TABLE)) {
+			for (freeId = 0; freeId <= virtualDisk.MAX_INTEGER; freeId++) {
+				if (this.systemAttributeTable.size() == 0) {
+					freeId = 0;
+					break;
+				} else {
+					for (i = 0; i < this.systemAttributeTable.size(); i++) {
+						if (this.systemAttributeTable.get(i).attrId == freeId) {
+							break;
+						}
+					}
+					if (i == this.systemAttributeTable.size()) {
+						break;
+					} else {
+						continue;
+					}
+				}
+			}
+
+			return freeId;
+		} else if (tableName.equals(virtualDisk.DEPUTYRULE_TABLE)) {
+			for (freeId = 0; freeId <= virtualDisk.MAX_INTEGER; freeId++) {
+				if (this.systemDeputyRuleTable.size() == 0) {
+					freeId = 0;
+					break;
+				} else {
+					for (i = 0; i < this.systemDeputyRuleTable.size(); i++) {
+						if (this.systemDeputyRuleTable.get(i).deputyRuleId == freeId) {
+							break;
+						}
+					}
+					if (i == this.systemDeputyRuleTable.size()) {
+						break;
+					} else {
+						continue;
+					}
+				}
+			}
+
+			return freeId;
+		} else {
+			return virtualDisk.MAX_INTEGER;
+		}
+	}
+
+	/*
+	 * get className by classId
+	 * @Args:
+	 *  classId(int)		: class id
+	 * @Ret:
+	 *  className(String)	: corresponding class name
+	 */
+	private String getClassName(int classId) {
+		for (int i = 0; i < this.systemClassTable.size(); i++) {
+			if (this.systemClassTable.get(i).classId == classId) {
+				return this.systemClassTable.get(i).className;
+			}
+		}
+		return null;
+	}
+
+	/*
+	 * get classId by className
+	 * @Args:
+	 *  className(String)	: class name
+	 * @Ret:
+	 *  classId(int)		: corresponding class id
+	 */
+	private int getClassId(String className) {
+		if (!this.existClass(className)) {
+			return virtualDisk.MAX_INTEGER;
+		} else {
+			for (int i = 0; i < this.systemClassTable.size(); i++) {
+				if (this.systemClassTable.get(i).className.equals(className)) {
+					return this.systemClassTable.get(i).classId;
+				}
+			}
+			return virtualDisk.MAX_INTEGER;
+		}
+	}
+
+	/*
+	 * save class struct to system table
+	 * @Args:
+	 *  className(String)			: class name
+	 *  classStruct(ClassStruct)	: class struct
+	 * @Ret:
+	 *  flag(boolean)				: whether save class struct successfully
+	 */
+	private boolean saveClassStruct(String className, ClassStruct classStruct) {
+		byte[] data;
+		int classId, selectClassId, attrId, deputyRuleId, n_block, n_nextBlock, i;
+		ArrayList<String> temp;
+		classTable tempClassTable;
+		attributeTable tempAttributeTable;
+		deputyTable tempDeputyTable;
+		deputyRuleTable tempDeputyRuleTable;
+		objectTable tempObjectTable;
+		switchingTable tempSwitchingTable;
+		biPointerTable tempBiPointerTable;
+		Attribute attribute;
+		AttrNameTuple virtualAttribute;
+
+		// if already exist, delete class
+		if (this.existClass(className)) {
+			if (!this.deleteClass(className)) {
+				return false;
+			}
+		}
+		// set classTable
+		temp = new ArrayList<String>();
+		temp.add(classStruct.className);
+		classId = this.getFreeId(virtualDisk.CLASS_TABLE);
+		temp.add(Integer.toString(classId));
+		temp.add(Integer.toString(classStruct.attrList.size() + classStruct.virtualAttr.size()));
+		if ((classStruct.selectClassName == null) || (classStruct.selectClassName.equals(""))) {
+			temp.add(Integer.toString(classTable.originClass));
+		} else {
+			temp.add(Integer.toString(classTable.deputyClass));
+		}
+		temp.add(Integer.toString(classStruct.tupleNum));
+		tempClassTable = new classTable(temp);
+		this.systemClassTable.add(tempClassTable);
+		// set attribute table
+		temp = new ArrayList<String>();
+		for (int j = 0; j < classStruct.attrList.size(); j++) {
+			temp = new ArrayList<String>();
+			attribute = classStruct.attrList.get(j);
+
+			temp.add(Integer.toString(classId));
+			attrId = this.getFreeId(virtualDisk.ATTRIBUTE_TABLE);
+			temp.add(Integer.toString(attrId));
+			temp.add(attribute.attrName);
+			temp.add(Integer.toString(attribute.attrType));
+			// not virtual attr
+			temp.add(Integer.toString(attributeTable.notVirtual));
+			temp.add(Integer.toString(attribute.attrSize));
+			temp.add(attribute.defaultVal);
+			tempAttributeTable = new attributeTable(temp);
+			this.systemAttributeTable.add(tempAttributeTable);
+		}
+		// set deputy table
+		temp = new ArrayList<String>();
+		if ((classStruct.selectClassName == null) || (classStruct.selectClassName.equals(""))) {
+			// origin class
+		} else {
+			selectClassId = this.getClassId(classStruct.selectClassName);
+			if (selectClassId == virtualDisk.MAX_INTEGER) {
+				return false;
+			} else {
+				temp.add(Integer.toString(selectClassId));
+				temp.add(Integer.toString(classId));
+				deputyRuleId = this.getFreeId(virtualDisk.DEPUTYRULE_TABLE);
+				temp.add(Integer.toString(deputyRuleId));
+				tempDeputyTable = new deputyTable(temp);
+				this.systemDeputyTable.add(tempDeputyTable);
+				// set deputy rule table
+				temp = new ArrayList<String>();
+				temp.add(Integer.toString(deputyRuleId));
+				temp.add(classStruct.condition);
+				tempDeputyRuleTable = new deputyRuleTable(temp);
+				this.systemDeputyRuleTable.add(tempDeputyRuleTable);
+			}
+		}
+		// set attribute table (virtual)
+		for (int j = 0; j < classStruct.virtualAttr.size(); j++) {
+			temp = new ArrayList<String>();
+			virtualAttribute = classStruct.virtualAttr.get(j);
+
+			temp.add(Integer.toString(classId));
+			attrId = this.getFreeId(virtualDisk.ATTRIBUTE_TABLE);
+			temp.add(Integer.toString(attrId));
+			temp.add(virtualAttribute.attrName);
+			temp.add(Integer.toString(0));
+			temp.add(Integer.toString(attributeTable.isVirtual));
+			temp.add(Integer.toString(0));
+			temp.add("");
+			tempAttributeTable = new attributeTable(temp);
+			this.systemAttributeTable.add(tempAttributeTable);
+			// set switching table
+			temp = new ArrayList<String>();
+
+			temp.add(Integer.toString(attrId));
+			temp.add(virtualAttribute.attrRename);
+			tempSwitchingTable = new switchingTable(temp);
+			this.systemSwitchingTable.add(tempSwitchingTable);
+		}
+		// set object table
+		temp = new ArrayList<String>();
+
+		temp.add(Integer.toString(classId));
+		temp.add(Integer.toString(0));
+		n_block = this.getFreeBlock();
+		if (n_block == virtualDisk.CONFIG_BLOCK_FLAG) {
+			return false;
+		} else {
+			if (!this.setNextBlock(n_block, n_block)) {
+				return false;
+			} else {
+				temp.add(Integer.toString(n_block));
+				// set class config page
+				data = new byte[this.blockSize];
+				virtualDisk.clearByteArray(data);
+				if (!this.write(n_block, 0, data, this.blockSize)) {
+					return false;
+				}
+				n_nextBlock = this.getFreeBlock();
+				if (n_nextBlock == virtualDisk.CONFIG_BLOCK_FLAG) {
+					return false;
+				} else {
+					if (!this.setNextBlock(n_block, n_nextBlock)) {
+						return false;
+					}
+				}
+			}
+		}
+		temp.add(Integer.toString(0));
+		tempObjectTable = new objectTable(temp);
+		this.systemObjectTable.add(tempObjectTable);
+
+		// flush system table to disk
+		return this.flushSystemTable();
+	}
+
+	/*
+	 * delete class from system table
+	 * @Args:
+	 *  className(String)	: class name
+	 * @Ret:
+	 *  flag(boolean)		: whether delete successfully
+	 */
+	private boolean deleteClass(String className) {
+		int classId, attrId, deputyRuleId, n_block;
+		classTable tempClassTable;
+		attributeTable tempAttributeTable;
+		deputyTable tempDeputyTable;
+		deputyRuleTable tempDeputyRuleTable;
+		objectTable tempObjectTable;
+		switchingTable tempSwitchingTable;
+		biPointerTable tempBiPointerTable;
+
+		if (!this.existClass(className)) {
+			return false;
+		} else {
+			classId = this.getClassId(className);
+
+			// init n_block
+			n_block = virtualDisk.MAX_INTEGER;
+
+			// delete object table
+			for (int i = 0; i < this.systemObjectTable.size(); i++) {
+				tempObjectTable = this.systemObjectTable.get(i);
+				if (tempObjectTable.classId == classId) {
+					this.systemObjectTable.remove(i);
+					n_block = tempObjectTable.blockId;
+					break;
+				}
+			}
+			if (n_block == virtualDisk.MAX_INTEGER) {
+				return false;
+			}
+			if (!this.deleteBlock(n_block)) {
+				return false;
+			}
+			// delete attribute table
+			for (int i = 0; i < this.systemAttributeTable.size(); i++) {
+				tempAttributeTable = this.systemAttributeTable.get(i);
+				if (tempAttributeTable.classId == classId) {
+					if (tempAttributeTable.isDeputy == attributeTable.isVirtual) {
+						attrId = tempAttributeTable.attrId;
+
+						// delete switching table
+						for (int j = 0; j < this.systemSwitchingTable.size(); j++) {
+							tempSwitchingTable = this.systemSwitchingTable.get(j);
+
+							if (tempSwitchingTable.attrId == attrId) {
+								this.systemSwitchingTable.remove(j);
+								break;
+							}
+						}
+					}
+					this.systemAttributeTable.remove(i);
+					// no break
+				}
+			}
+			// delete class table
+			for (int i = 0; i < this.systemClassTable.size(); i++) {
+				tempClassTable = this.systemClassTable.get(i);
+				if (tempClassTable.classType == classTable.deputyClass) {
+					for (int j = 0; j < this.systemDeputyTable.size(); j++) {
+						tempDeputyTable = this.systemDeputyTable.get(j);
+						if (tempDeputyTable.deputyId == classId) {
+							deputyRuleId = tempDeputyTable.deputyRuleId;
+							for (int k = 0; k < this.systemDeputyRuleTable.size(); k++) {
+								tempDeputyRuleTable = this.systemDeputyRuleTable.get(k);
+								if (tempDeputyRuleTable.deputyRuleId == deputyRuleId) {
+									this.systemDeputyRuleTable.remove(k);
+									break;
+								}
+							}
+							this.systemDeputyTable.remove(j);
+							break;
+						}
+					}
+				}
+				if (tempClassTable.classId == classId) {
+					this.systemClassTable.remove(i);
+					break;
+				}
+			}
+
+			// flush system table to disk
+			return this.flushSystemTable();
 		}
 	}
 
@@ -1787,6 +2211,13 @@ public class virtualDisk {
 		return this.deleteClass(className);
 	}
 
+	/*
+	 * initial vdisk.currClassName
+	 * @Args:
+	 *  className(String)		: class name
+	 * @Ret:
+	 *  None
+	 */
 	public void initial(String className) {
 		// flushToDisk();
 		this.currClassName = className;
@@ -1794,6 +2225,15 @@ public class virtualDisk {
 		this.fakeBlockOffset = 0;
 	}
 
+	/*
+	 * initial vdisk.currClassName
+	 * @Args:
+	 *  className(String)		: class name
+	 *  _fakeBlockNum(int)		: fake block num
+	 *  _fakeBlockOffset(int)	: fake block offset
+	 * @Ret:
+	 *  None
+	 */
 	public void initial(String className, int _fakeBlockNum, int _fakeBlockOffset) {
 		// flushToDisk();
 		this.currClassName = className;
@@ -1801,10 +2241,24 @@ public class virtualDisk {
 		this.fakeBlockOffset = _fakeBlockOffset;
 	}
 
+	/*
+	 * flush buffer data to disk
+	 * @Args:
+	 *  None
+	 * @Ret:
+	 *  None
+	 */
 	public void flushToDisk() {
 		return;
 	}
 
+	/*
+	 * get next tuple
+	 * @Args:
+	 *  None
+	 * @Ret:
+	 *  result(ArrayList<String>)	: next data tuple
+	 */
 	public ArrayList<String> Next() {
 		int realBlockNum, realBlockOffset, index, lastIndex, n_block, classId;
 		ClassStruct classStruct;
@@ -1868,327 +2322,35 @@ public class virtualDisk {
 		return result;
 	}
 
+	/*
+	 * get vdisk total offset(index)
+	 * @Args:
+	 *  None
+	 * @Ret:
+	 *  offset(int)			: total offset
+	 */
 	public int getOffset() {
-		System.out.printf("this.fakeBlockNum: %d, this.fakeBlockOffset: %d\n", this.fakeBlockNum, this.fakeBlockOffset);
+		// System.out.printf("this.fakeBlockNum: %d, this.fakeBlockOffset: %d\n", this.fakeBlockNum, this.fakeBlockOffset);
 
 		return this.fakeBlockNum * virtualDisk.PAGESIZE + this.fakeBlockOffset - 1;
 	}
 
-	private int getFreeId(String tableName) {
-		int freeId, i;
-
-		if (tableName.equals(virtualDisk.CLASS_TABLE)) {
-			for (freeId = 0; freeId < virtualDisk.MAX_INTEGER; freeId++) {
-				if (this.systemClassTable.size() == 0) {
-					freeId = 0;
-					break;
-				} else {
-					for (i = 0; i < this.systemClassTable.size(); i++) {
-						if (this.systemClassTable.get(i).classId == freeId) {
-							break;
-						}
-					}
-					if (i == this.systemClassTable.size()) {
-						break;
-					} else {
-						continue;
-					}
-				}
-			}
-
-			return freeId;
-		} else if (tableName.equals(virtualDisk.ATTRIBUTE_TABLE)) {
-			for (freeId = 0; freeId <= virtualDisk.MAX_INTEGER; freeId++) {
-				if (this.systemAttributeTable.size() == 0) {
-					freeId = 0;
-					break;
-				} else {
-					for (i = 0; i < this.systemAttributeTable.size(); i++) {
-						if (this.systemAttributeTable.get(i).attrId == freeId) {
-							break;
-						}
-					}
-					if (i == this.systemAttributeTable.size()) {
-						break;
-					} else {
-						continue;
-					}
-				}
-			}
-
-			return freeId;
-		} else if (tableName.equals(virtualDisk.DEPUTYRULE_TABLE)) {
-			for (freeId = 0; freeId <= virtualDisk.MAX_INTEGER; freeId++) {
-				if (this.systemDeputyRuleTable.size() == 0) {
-					freeId = 0;
-					break;
-				} else {
-					for (i = 0; i < this.systemDeputyRuleTable.size(); i++) {
-						if (this.systemDeputyRuleTable.get(i).deputyRuleId == freeId) {
-							break;
-						}
-					}
-					if (i == this.systemDeputyRuleTable.size()) {
-						break;
-					} else {
-						continue;
-					}
-				}
-			}
-
-			return freeId;
-		} else {
-			return virtualDisk.MAX_INTEGER;
-		}
-	}
-
-	private String getClassName(int classId) {
-		for (int i = 0; i < this.systemClassTable.size(); i++) {
-			if (this.systemClassTable.get(i).classId == classId) {
-				return this.systemClassTable.get(i).className;
-			}
-		}
-		return null;
-	}
-
-	private int getClassId(String className) {
-		if (!this.existClass(className)) {
-			return virtualDisk.MAX_INTEGER;
-		} else {
-			for (int i = 0; i < this.systemClassTable.size(); i++) {
-				if (this.systemClassTable.get(i).className.equals(className)) {
-					return this.systemClassTable.get(i).classId;
-				}
-			}
-			return virtualDisk.MAX_INTEGER;
-		}
-	}
-
-	private boolean saveClassStruct(String className, ClassStruct classStruct) {
-		byte[] data;
-		int classId, selectClassId, attrId, deputyRuleId, n_block, n_nextBlock, i;
-		ArrayList<String> temp;
-		classTable tempClassTable;
-		attributeTable tempAttributeTable;
-		deputyTable tempDeputyTable;
-		deputyRuleTable tempDeputyRuleTable;
-		objectTable tempObjectTable;
-		switchingTable tempSwitchingTable;
-		biPointerTable tempBiPointerTable;
-		Attribute attribute;
-		AttrNameTuple virtualAttribute;
-
-		// if already exist, delete class
-		if (this.existClass(className)) {
-			if (!this.deleteClass(className)) {
-				return false;
-			}
-		}
-		// set classTable
-		temp = new ArrayList<String>();
-		temp.add(classStruct.className);
-		classId = this.getFreeId(virtualDisk.CLASS_TABLE);
-		temp.add(Integer.toString(classId));
-		temp.add(Integer.toString(classStruct.attrList.size() + classStruct.virtualAttr.size()));
-		if ((classStruct.selectClassName == null) || (classStruct.selectClassName.equals(""))) {
-			temp.add(Integer.toString(classTable.originClass));
-		} else {
-			temp.add(Integer.toString(classTable.deputyClass));
-		}
-		temp.add(Integer.toString(classStruct.tupleNum));
-		tempClassTable = new classTable(temp);
-		this.systemClassTable.add(tempClassTable);
-		// set attribute table
-		temp = new ArrayList<String>();
-		for (int j = 0; j < classStruct.attrList.size(); j++) {
-			temp = new ArrayList<String>();
-			attribute = classStruct.attrList.get(j);
-
-			temp.add(Integer.toString(classId));
-			attrId = this.getFreeId(virtualDisk.ATTRIBUTE_TABLE);
-			temp.add(Integer.toString(attrId));
-			temp.add(attribute.attrName);
-			temp.add(Integer.toString(attribute.attrType));
-			// not virtual attr
-			temp.add(Integer.toString(attributeTable.notVirtual));
-			temp.add(Integer.toString(attribute.attrSize));
-			temp.add(attribute.defaultVal);
-			tempAttributeTable = new attributeTable(temp);
-			this.systemAttributeTable.add(tempAttributeTable);
-		}
-		// set deputy table
-		temp = new ArrayList<String>();
-		if ((classStruct.selectClassName == null) || (classStruct.selectClassName.equals(""))) {
-			// origin class
-		} else {
-			selectClassId = this.getClassId(classStruct.selectClassName);
-			if (selectClassId == virtualDisk.MAX_INTEGER) {
-				return false;
-			} else {
-				temp.add(Integer.toString(selectClassId));
-				temp.add(Integer.toString(classId));
-				deputyRuleId = this.getFreeId(virtualDisk.DEPUTYRULE_TABLE);
-				temp.add(Integer.toString(deputyRuleId));
-				tempDeputyTable = new deputyTable(temp);
-				this.systemDeputyTable.add(tempDeputyTable);
-				// set deputy rule table
-				temp = new ArrayList<String>();
-				temp.add(Integer.toString(deputyRuleId));
-				temp.add(classStruct.condition);
-				tempDeputyRuleTable = new deputyRuleTable(temp);
-				this.systemDeputyRuleTable.add(tempDeputyRuleTable);
-			}
-		}
-		// set attribute table (virtual)
-		for (int j = 0; j < classStruct.virtualAttr.size(); j++) {
-			temp = new ArrayList<String>();
-			virtualAttribute = classStruct.virtualAttr.get(j);
-
-			temp.add(Integer.toString(classId));
-			attrId = this.getFreeId(virtualDisk.ATTRIBUTE_TABLE);
-			temp.add(Integer.toString(attrId));
-			temp.add(virtualAttribute.attrName);
-			temp.add(Integer.toString(0));
-			temp.add(Integer.toString(attributeTable.isVirtual));
-			temp.add(Integer.toString(0));
-			temp.add("");
-			tempAttributeTable = new attributeTable(temp);
-			this.systemAttributeTable.add(tempAttributeTable);
-			// set switching table
-			temp = new ArrayList<String>();
-
-			temp.add(Integer.toString(attrId));
-			temp.add(virtualAttribute.attrRename);
-			tempSwitchingTable = new switchingTable(temp);
-			this.systemSwitchingTable.add(tempSwitchingTable);
-		}
-		// set object table
-		temp = new ArrayList<String>();
-
-		temp.add(Integer.toString(classId));
-		temp.add(Integer.toString(0));
-		n_block = this.getFreeBlock();
-		if (n_block == virtualDisk.CONFIG_BLOCK_FLAG) {
-			return false;
-		} else {
-			if (!this.setNextBlock(n_block, n_block)) {
-				return false;
-			} else {
-				temp.add(Integer.toString(n_block));
-				// set class config page
-				data = new byte[this.blockSize];
-				virtualDisk.clearByteArray(data);
-				if (!this.write(n_block, 0, data, this.blockSize)) {
-					return false;
-				}
-				n_nextBlock = this.getFreeBlock();
-				if (n_nextBlock == virtualDisk.CONFIG_BLOCK_FLAG) {
-					return false;
-				} else {
-					if (!this.setNextBlock(n_block, n_nextBlock)) {
-						return false;
-					}
-				}
-			}
-		}
-		temp.add(Integer.toString(0));
-		tempObjectTable = new objectTable(temp);
-		this.systemObjectTable.add(tempObjectTable);
-
-		// flush system table to disk
-		return this.flushSystemTable();
-	}
-
-	private boolean deleteClass(String className) {
-		int classId, attrId, deputyRuleId, n_block;
-		classTable tempClassTable;
-		attributeTable tempAttributeTable;
-		deputyTable tempDeputyTable;
-		deputyRuleTable tempDeputyRuleTable;
-		objectTable tempObjectTable;
-		switchingTable tempSwitchingTable;
-		biPointerTable tempBiPointerTable;
-
-		if (!this.existClass(className)) {
-			return false;
-		} else {
-			classId = this.getClassId(className);
-
-			// init n_block
-			n_block = virtualDisk.MAX_INTEGER;
-
-			// delete object table
-			for (int i = 0; i < this.systemObjectTable.size(); i++) {
-				tempObjectTable = this.systemObjectTable.get(i);
-				if (tempObjectTable.classId == classId) {
-					this.systemObjectTable.remove(i);
-					n_block = tempObjectTable.blockId;
-					break;
-				}
-			}
-			if (n_block == virtualDisk.MAX_INTEGER) {
-				return false;
-			}
-			if (!this.deleteBlock(n_block)) {
-				return false;
-			}
-			// delete attribute table
-			for (int i = 0; i < this.systemAttributeTable.size(); i++) {
-				tempAttributeTable = this.systemAttributeTable.get(i);
-				if (tempAttributeTable.classId == classId) {
-					if (tempAttributeTable.isDeputy == attributeTable.isVirtual) {
-						attrId = tempAttributeTable.attrId;
-
-						// delete switching table
-						for (int j = 0; j < this.systemSwitchingTable.size(); j++) {
-							tempSwitchingTable = this.systemSwitchingTable.get(j);
-
-							if (tempSwitchingTable.attrId == attrId) {
-								this.systemSwitchingTable.remove(j);
-								break;
-							}
-						}
-					}
-					this.systemAttributeTable.remove(i);
-					// no break
-				}
-			}
-			// delete class table
-			for (int i = 0; i < this.systemClassTable.size(); i++) {
-				tempClassTable = this.systemClassTable.get(i);
-				if (tempClassTable.classType == classTable.deputyClass) {
-					for (int j = 0; j < this.systemDeputyTable.size(); j++) {
-						tempDeputyTable = this.systemDeputyTable.get(j);
-						if (tempDeputyTable.deputyId == classId) {
-							deputyRuleId = tempDeputyTable.deputyRuleId;
-							for (int k = 0; k < this.systemDeputyRuleTable.size(); k++) {
-								tempDeputyRuleTable = this.systemDeputyRuleTable.get(k);
-								if (tempDeputyRuleTable.deputyRuleId == deputyRuleId) {
-									this.systemDeputyRuleTable.remove(k);
-									break;
-								}
-							}
-							this.systemDeputyTable.remove(j);
-							break;
-						}
-					}
-				}
-				if (tempClassTable.classId == classId) {
-					this.systemClassTable.remove(i);
-					break;
-				}
-			}
-
-			// flush system table to disk
-			return this.flushSystemTable();
-		}
-	}
-
+	/*
+	 * insert tuple to class
+	 * @Args:
+	 *  className(String)			: class name
+	 *  tuple(ArrayList<String>)	: data tuple
+	 * @Ret:
+	 *  None
+	 */
 	public void insert(String className, ArrayList<String> tuple) {
 		int realBlockNum, realBlockOffset, index, n_block, classId;
 		ClassStruct classStruct;
 		ArrayList<Integer> lengthList, typeList;
 
+		// avoid className not match this.currClassName
+		this.flushToDisk();
+		this.initial(className);
 		classId = this.getClassId(this.currClassName);
 		classStruct = this.getClassStruct(this.currClassName);
 		if (classStruct == null) {
@@ -2238,18 +2400,24 @@ public class virtualDisk {
 
 		this.writeOneTuple(lengthList, typeList, realBlockNum, realBlockOffset, tuple);
 
-		System.out.printf("this.fakeBlockNum: %d, this.fakeBlockOffset: %d\n", this.fakeBlockNum, this.fakeBlockOffset);
 		// reset fakeBlockNum, fakeBlockOffset
 		this.fakeBlockOffset += 1;
 		if (this.fakeBlockOffset == virtualDisk.PAGESIZE) {
 			this.fakeBlockOffset = 0;
 			this.fakeBlockNum += 1;
 		}
-		System.out.println("INFO: insert successfully!");
+		// System.out.println("INFO: insert successfully!");
 
 		return;
 	}
 
+	/*
+	 * update tuple in class data
+	 * @Args:
+	 *  tuple(ArrayList<String>)	: update data tuple
+	 * @Ret:
+	 *  None
+	 */
 	public void update(ArrayList<String> tuple) {
 		int realBlockNum, realBlockOffset;
 		ClassStruct classStruct;
@@ -2295,6 +2463,13 @@ public class virtualDisk {
 		}
 	}
 
+	/*
+	 * delete tuple in class data
+	 * @Args:
+	 *  None
+	 * @Ret:
+	 *  None
+	 */
 	public void delete() {
 		int index, n_block, classId;
 		
