@@ -17,6 +17,8 @@ public class virtualDisk {
 	final static int MAX_INTEGER = 0x7FFFFFFF;
 	final static String charSet = "utf-8";
 
+	public final static int PAGESIZE = 32;
+
 	private String baseLocation;		// the location of the whole project
 	private String configLocation;		// the location of config file
 	private String vdiskLocation;		// the location of vdisk
@@ -34,6 +36,9 @@ public class virtualDisk {
 	private ArrayList<objectTable> systemObjectTable;
 	private ArrayList<switchingTable> systemSwitchingTable;
 	private ArrayList<biPointerTable> systemBiPointerTable;
+
+	private int fakeBlockNum, fakeBlockOffset;
+	private String currClassName;
 
 	public virtualDisk(String baseLocation) {
 		JSONArray configure;
@@ -319,7 +324,8 @@ public class virtualDisk {
 		ArrayList<String> temp;
 		ArrayList<String> data = this.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.CLASS_TABLE));
 
-		if ((data.size() / classTable.N_ATTR) != 0) {
+		if ((data.size() % classTable.N_ATTR) != 0) {
+			System.err.printf("ERROR: data.size()(%d) classTable.N_ATTR(%d) from getClassTable!\n", data.size(), classTable.N_ATTR);
 			return false;
 		} else if (data.size() == 0) {
 			this.systemClassTable = new ArrayList<classTable>();
@@ -371,7 +377,7 @@ public class virtualDisk {
 		ArrayList<String> temp;
 		ArrayList<String> data = this.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.ATTRIBUTE_TABLE));
 
-		if ((data.size() / attributeTable.N_ATTR) != 0) {
+		if ((data.size() % attributeTable.N_ATTR) != 0) {
 			return false;
 		} else if (data.size() == 0) {
 			this.systemAttributeTable = new ArrayList<attributeTable>();
@@ -423,7 +429,7 @@ public class virtualDisk {
 		ArrayList<String> temp;
 		ArrayList<String> data = this.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.DEPUTY_TABLE));
 
-		if ((data.size() / deputyTable.N_ATTR) != 0) {
+		if ((data.size() % deputyTable.N_ATTR) != 0) {
 			return false;
 		} else if (data.size() == 0) {
 			this.systemDeputyTable = new ArrayList<deputyTable>();
@@ -475,7 +481,7 @@ public class virtualDisk {
 		ArrayList<String> temp;
 		ArrayList<String> data = this.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.DEPUTYRULE_TABLE));
 
-		if ((data.size() / deputyRuleTable.N_ATTR) != 0) {
+		if ((data.size() % deputyRuleTable.N_ATTR) != 0) {
 			return false;
 		} else if (data.size() == 0) {
 			this.systemDeputyRuleTable = new ArrayList<deputyRuleTable>();
@@ -527,7 +533,7 @@ public class virtualDisk {
 		ArrayList<String> temp;
 		ArrayList<String> data = this.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.OBJECT_TABLE));
 
-		if ((data.size() / objectTable.N_ATTR) != 0) {
+		if ((data.size() % objectTable.N_ATTR) != 0) {
 			return false;
 		} else if (data.size() == 0) {
 			this.systemObjectTable = new ArrayList<objectTable>();
@@ -579,7 +585,7 @@ public class virtualDisk {
 		ArrayList<String> temp;
 		ArrayList<String> data = this.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.SWITCHING_TABLE));
 
-		if ((data.size() / switchingTable.N_ATTR) != 0) {
+		if ((data.size() % switchingTable.N_ATTR) != 0) {
 			return false;
 		} else if (data.size() == 0) {
 			this.systemSwitchingTable = new ArrayList<switchingTable>();
@@ -631,7 +637,7 @@ public class virtualDisk {
 		ArrayList<String> temp;
 		ArrayList<String> data = this.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.BIPOINTER_TABLE));
 
-		if ((data.size() / biPointerTable.N_ATTR) != 0) {
+		if ((data.size() % biPointerTable.N_ATTR) != 0) {
 			return false;
 		} else if (data.size() == 0) {
 			this.systemBiPointerTable = new ArrayList<biPointerTable>();
@@ -1389,6 +1395,207 @@ public class virtualDisk {
 		}
 	}
 
+	public boolean ocupyOneTuple(int n_block, int index) {
+		byte[] data = new byte[1];
+
+		if ((this.getNextBlock(n_block) == virtualDisk.CONFIG_BLOCK_FLAG) || (this.getNextBlock(n_block) == virtualDisk.FREE_BLOCK_FLAG)) {
+			return false;
+		} else if (index >= (virtualDisk.BITS_OF_BYTE * this.blockSize)) {
+			System.err.println("ERROR: index to large!");
+			return false;
+		} else {
+			data = this.read(n_block, index / virtualDisk.BITS_OF_BYTE, 1);
+			if ((index % virtualDisk.BITS_OF_BYTE) == 0) {
+				data[0] = (byte) (data[0] | 0x01);
+			} else if ((index % virtualDisk.BITS_OF_BYTE) == 1) {
+				data[0] = (byte) (data[0] | 0x02);
+			} else if ((index % virtualDisk.BITS_OF_BYTE) == 2) {
+				data[0] = (byte) (data[0] | 0x04);
+			} else if ((index % virtualDisk.BITS_OF_BYTE) == 3) {
+				data[0] = (byte) (data[0] | 0x08);
+			} else if ((index % virtualDisk.BITS_OF_BYTE) == 4) {
+				data[0] = (byte) (data[0] | 0x10);
+			} else if ((index % virtualDisk.BITS_OF_BYTE) == 5) {
+				data[0] = (byte) (data[0] | 0x20);
+			} else if ((index % virtualDisk.BITS_OF_BYTE) == 6) {
+				data[0] = (byte) (data[0] | 0x40);
+			} else if ((index % virtualDisk.BITS_OF_BYTE) == 7) {
+				data[0] = (byte) (data[0] | 0x80);
+			} else {
+				return false;
+			}
+			return this.write(n_block, index / virtualDisk.BITS_OF_BYTE, data, 1);
+		}
+	}
+
+	public boolean freeOneTuple(int n_block, int index) {
+		byte[] data;
+
+		if ((this.getNextBlock(n_block) == virtualDisk.CONFIG_BLOCK_FLAG) || (this.getNextBlock(n_block) == virtualDisk.FREE_BLOCK_FLAG)) {
+			return false;
+		} else if (index >= (virtualDisk.BITS_OF_BYTE * this.blockSize)) {
+			System.err.println("ERROR: index to large!");
+			return false;
+		} else {
+			data = this.read(n_block, index / virtualDisk.BITS_OF_BYTE, 1);
+			if ((index % virtualDisk.BITS_OF_BYTE) == 0) {
+				data[0] = (byte) (data[0] & 0xfe);
+			} else if ((index % virtualDisk.BITS_OF_BYTE) == 1) {
+				data[0] = (byte) (data[0] & 0xfd);
+			} else if ((index % virtualDisk.BITS_OF_BYTE) == 2) {
+				data[0] = (byte) (data[0] & 0xfb);
+			} else if ((index % virtualDisk.BITS_OF_BYTE) == 3) {
+				data[0] = (byte) (data[0] & 0xf7);
+			} else if ((index % virtualDisk.BITS_OF_BYTE) == 4) {
+				data[0] = (byte) (data[0] & 0xef);
+			} else if ((index % virtualDisk.BITS_OF_BYTE) == 5) {
+				data[0] = (byte) (data[0] & 0xdf);
+			} else if ((index % virtualDisk.BITS_OF_BYTE) == 6) {
+				data[0] = (byte) (data[0] & 0xbf);
+			} else if ((index % virtualDisk.BITS_OF_BYTE) == 7) {
+				data[0] = (byte) (data[0] & 0x7f);
+			} else {
+				return false;
+			}
+			return this.write(n_block, index / virtualDisk.BITS_OF_BYTE, data, 1);
+		}
+	}
+
+	public int getFreeTuple(int n_block) {
+		byte[] data;
+
+		if ((this.getNextBlock(n_block) == virtualDisk.CONFIG_BLOCK_FLAG) || (this.getNextBlock(n_block) == virtualDisk.FREE_BLOCK_FLAG)) {
+			return virtualDisk.MAX_INTEGER;
+		} else {
+			for (int offset = 0; offset < this.blockSize; offset++) {
+				data = this.read(n_block, offset, 1);
+				System.out.println("data[0]: " + data[0]);
+				if (data[0] == (byte) 0xff) {
+					continue;
+				} else {
+					if ((data[0] & 0x01) == 0x00) {
+						// 0 free
+						return (offset * virtualDisk.BITS_OF_BYTE);
+					} else if ((data[0] & 0x02) == 0x00) {
+						// 1 free
+						return (offset * virtualDisk.BITS_OF_BYTE) + 1;
+					} else if ((data[0] & 0x04) == 0x00) {
+						// 2 free
+						return (offset * virtualDisk.BITS_OF_BYTE) + 2;
+					} else if ((data[0] & 0x08) == 0x00) {
+						// 3 free
+						return (offset * virtualDisk.BITS_OF_BYTE) + 3;
+					} else if ((data[0] & 0x10) == 0x00) {
+						// 4 free
+						return (offset * virtualDisk.BITS_OF_BYTE) + 4;
+					} else if ((data[0] & 0x20) == 0x00) {
+						// 5 free
+						return (offset * virtualDisk.BITS_OF_BYTE) + 5;
+					} else if ((data[0] & 0x40) == 0x00) {
+						// 6 free
+						return (offset * virtualDisk.BITS_OF_BYTE) + 6;
+					} else if ((data[0] & 0x80) == 0x00) {
+						// 7 free
+						return (offset * virtualDisk.BITS_OF_BYTE) + 7;
+					} else {
+						return virtualDisk.MAX_INTEGER;
+					}
+				}
+			}
+			return virtualDisk.MAX_INTEGER;
+		}
+	}
+
+	public int getNextOcupiedTuple(int n_block, int index) {
+		byte[] data;
+		int nextIndex;
+
+		if ((this.getNextBlock(n_block) == virtualDisk.CONFIG_BLOCK_FLAG) || (this.getNextBlock(n_block) == virtualDisk.FREE_BLOCK_FLAG)) {
+			return virtualDisk.MAX_INTEGER;
+		} else if (index >= (virtualDisk.BITS_OF_BYTE * this.blockSize)) {
+			System.err.println("ERROR: index to large!");
+			return virtualDisk.MAX_INTEGER;
+		} else if ((index + 1) == (virtualDisk.BITS_OF_BYTE * this.blockSize)) {
+			System.err.println("ERROR: this is the last one(temp not support extend slub!");
+			return virtualDisk.MAX_INTEGER;
+		} else {
+			nextIndex = index + 1;
+			data = this.read(n_block, nextIndex / virtualDisk.BITS_OF_BYTE, 1);
+			for (; nextIndex < (virtualDisk.BITS_OF_BYTE * this.blockSize); nextIndex++) {			
+				if ((nextIndex % virtualDisk.BITS_OF_BYTE) == 0) {
+					// update data
+					data = this.read(n_block, nextIndex / virtualDisk.BITS_OF_BYTE, 1);
+				}
+				if ((data[0] >> (nextIndex % virtualDisk.BITS_OF_BYTE) & 0x01) == 0x01) {
+					// ocupied
+					return nextIndex;
+				}
+			}
+			return virtualDisk.MAX_INTEGER;
+		}
+	}
+
+	public int fakeOffset2RealOffset() {
+		int classId, tupleLength = 0, realBlockOffset;
+		ArrayList<Integer> lengthList;
+		ClassStruct classStruct;
+
+		classId = this.getClassId(this.currClassName);
+		classStruct = this.getClassStruct(this.currClassName);
+		lengthList = this.getLengthList(classStruct);
+		// get tuple length
+		for (int i = 0; i < lengthList.size(); i++) {
+			tupleLength += lengthList.get(i).intValue();
+		}
+		if (tupleLength == 0) {
+			return virtualDisk.MAX_INTEGER;
+		}
+		// calculate realBlockOffset
+		realBlockOffset = (((this.fakeBlockNum * virtualDisk.PAGESIZE) + this.fakeBlockOffset) * tupleLength) % this.blockSize;
+
+		return realBlockOffset;
+	}
+
+	// before Next()
+	public int fakeBlock2RealBlock() {
+		int n_block, n_nextBlock, classId, tupleLength = 0, realBlockNum, realBlockOffset;
+		ArrayList<Integer> lengthList;
+		ClassStruct classStruct;
+
+		n_block = n_nextBlock = virtualDisk.MAX_INTEGER;
+		classId = this.getClassId(this.currClassName);
+		classStruct = this.getClassStruct(this.currClassName);
+		lengthList = this.getLengthList(classStruct);
+		// get tuple length
+		for (int i = 0; i < lengthList.size(); i++) {
+			tupleLength += lengthList.get(i).intValue();
+		}
+		if (tupleLength == 0) {
+			return virtualDisk.MAX_INTEGER;
+		}
+		// calculate realBlockNum
+		realBlockNum = (((this.fakeBlockNum * virtualDisk.PAGESIZE) + this.fakeBlockOffset) * tupleLength) / this.blockSize;
+		// get start n_block
+		for (int i = 0; i < this.systemObjectTable.size(); i++) {
+			if (this.systemObjectTable.get(i).classId == classId) {
+				n_block = this.systemObjectTable.get(i).blockId;
+				break;
+			}
+		}
+		if ((n_block == virtualDisk.MAX_INTEGER) || (n_block == virtualDisk.CONFIG_BLOCK_FLAG) || (n_block == virtualDisk.FREE_BLOCK_FLAG)) {
+			return virtualDisk.MAX_INTEGER;
+		} else {
+			for (int i = 0; i <= realBlockNum; i++) {
+				n_nextBlock = this.getNextBlock(n_block);
+				if ((n_nextBlock == virtualDisk.MAX_INTEGER) || (n_nextBlock == virtualDisk.CONFIG_BLOCK_FLAG) || (n_nextBlock == virtualDisk.FREE_BLOCK_FLAG)) {
+					return virtualDisk.MAX_INTEGER;
+				}
+				n_block = n_nextBlock;
+			}
+			return n_block;
+		}
+	}
+
 	/*
 	 * whether exist class
 	 * @Args:
@@ -1580,6 +1787,93 @@ public class virtualDisk {
 		return this.deleteClass(className);
 	}
 
+	public void initial(String className) {
+		// flushToDisk();
+		this.currClassName = className;
+		this.fakeBlockNum = 0;
+		this.fakeBlockOffset = 0;
+	}
+
+	public void initial(String className, int _fakeBlockNum, int _fakeBlockOffset) {
+		// flushToDisk();
+		this.currClassName = className;
+		this.fakeBlockNum = _fakeBlockNum;
+		this.fakeBlockOffset = _fakeBlockOffset;
+	}
+
+	public void flushToDisk() {
+		return;
+	}
+
+	public ArrayList<String> Next() {
+		int realBlockNum, realBlockOffset, index, lastIndex, n_block, classId;
+		ClassStruct classStruct;
+		ArrayList<Integer> lengthList, typeList;
+		ArrayList<String> result;
+
+		classId = this.getClassId(this.currClassName);
+		classStruct = this.getClassStruct(this.currClassName);
+		// get first block
+		n_block = virtualDisk.MAX_INTEGER;
+		for (int i = 0; i < this.systemObjectTable.size() ; i++) {
+			if (this.systemObjectTable.get(i).classId == classId) {
+				n_block = this.systemObjectTable.get(i).blockId;
+				break;
+			}
+		}
+		// valid check
+		if ((n_block == virtualDisk.MAX_INTEGER) || (n_block == virtualDisk.CONFIG_BLOCK_FLAG) || (n_block == virtualDisk.FREE_BLOCK_FLAG)) {
+			return null;
+		}
+
+		// whether current Offset valid, update fakeBlock
+		if (this.fakeBlockOffset == virtualDisk.PAGESIZE) {
+			this.fakeBlockOffset = 0;
+			this.fakeBlockNum += 1;
+		}
+		lastIndex = (this.fakeBlockNum * virtualDisk.PAGESIZE) + this.fakeBlockOffset - 1;
+		index = this.getNextOcupiedTuple(n_block, lastIndex);
+		if (index == virtualDisk.MAX_INTEGER) {
+			return null;
+		} else if (index > lastIndex + 1) {
+			this.fakeBlockNum = index / virtualDisk.PAGESIZE;
+			this.fakeBlockOffset = index % virtualDisk.PAGESIZE;
+		}	
+
+		// calculate offset & block
+		realBlockNum = this.fakeBlock2RealBlock();
+		realBlockOffset = this.fakeOffset2RealOffset();
+		// valid check
+		if (realBlockNum == virtualDisk.MAX_INTEGER) {
+			return null;
+		}
+		if (realBlockOffset == virtualDisk.MAX_INTEGER) {
+			return null;
+		}
+		lengthList = this.getLengthList(classStruct);
+		typeList = this.getTypeList(classStruct);
+		// valid check, null pointer
+		if ((typeList == null) || (lengthList == null)) {
+			return null;
+		}
+		result = this.readOneTuple(lengthList, typeList, realBlockNum, realBlockOffset);
+
+		// reset fakeBlockNum, fakeBlockOffset
+		this.fakeBlockOffset += 1;
+		if (this.fakeBlockOffset == virtualDisk.PAGESIZE) {
+			this.fakeBlockOffset = 0;
+			this.fakeBlockNum += 1;
+		}
+
+		return result;
+	}
+
+	public int getOffset() {
+		System.out.printf("this.fakeBlockNum: %d, this.fakeBlockOffset: %d\n", this.fakeBlockNum, this.fakeBlockOffset);
+
+		return this.fakeBlockNum * virtualDisk.PAGESIZE + this.fakeBlockOffset - 1;
+	}
+
 	private int getFreeId(String tableName) {
 		int freeId, i;
 
@@ -1671,7 +1965,8 @@ public class virtualDisk {
 	}
 
 	private boolean saveClassStruct(String className, ClassStruct classStruct) {
-		int classId, selectClassId, attrId, deputyRuleId, n_block, i;
+		byte[] data;
+		int classId, selectClassId, attrId, deputyRuleId, n_block, n_nextBlock, i;
 		ArrayList<String> temp;
 		classTable tempClassTable;
 		attributeTable tempAttributeTable;
@@ -1780,6 +2075,20 @@ public class virtualDisk {
 				return false;
 			} else {
 				temp.add(Integer.toString(n_block));
+				// set class config page
+				data = new byte[this.blockSize];
+				virtualDisk.clearByteArray(data);
+				if (!this.write(n_block, 0, data, this.blockSize)) {
+					return false;
+				}
+				n_nextBlock = this.getFreeBlock();
+				if (n_nextBlock == virtualDisk.CONFIG_BLOCK_FLAG) {
+					return false;
+				} else {
+					if (!this.setNextBlock(n_block, n_nextBlock)) {
+						return false;
+					}
+				}
 			}
 		}
 		temp.add(Integer.toString(0));
@@ -1872,6 +2181,147 @@ public class virtualDisk {
 
 			// flush system table to disk
 			return this.flushSystemTable();
+		}
+	}
+
+	public void insert(String className, ArrayList<String> tuple) {
+		int realBlockNum, realBlockOffset, index, n_block, classId;
+		ClassStruct classStruct;
+		ArrayList<Integer> lengthList, typeList;
+
+		classId = this.getClassId(this.currClassName);
+		classStruct = this.getClassStruct(this.currClassName);
+		if (classStruct == null) {
+			return;
+		}
+		// get first block
+		n_block = virtualDisk.MAX_INTEGER;
+		for (int i = 0; i < this.systemObjectTable.size() ; i++) {
+			if (this.systemObjectTable.get(i).classId == classId) {
+				n_block = this.systemObjectTable.get(i).blockId;
+				break;
+			}
+		}
+		// valid check
+		if ((n_block == virtualDisk.MAX_INTEGER) || (n_block == virtualDisk.CONFIG_BLOCK_FLAG) || (n_block == virtualDisk.FREE_BLOCK_FLAG)) {
+			return;
+		}
+
+		index = this.getFreeTuple(n_block);
+		if (!ocupyOneTuple(n_block, index)) {
+			return;
+		}
+		// valid check
+		if (index == virtualDisk.MAX_INTEGER) {
+			return;
+		} else {
+			this.fakeBlockNum = index / virtualDisk.PAGESIZE;
+			this.fakeBlockOffset = index % virtualDisk.PAGESIZE;
+		}
+
+		// calculate offset & block
+		realBlockNum = this.fakeBlock2RealBlock();
+		realBlockOffset = this.fakeOffset2RealOffset();
+		// valid check
+		if (realBlockNum == virtualDisk.MAX_INTEGER) {
+			return;
+		}
+		if (realBlockOffset == virtualDisk.MAX_INTEGER) {
+			return;
+		}
+		lengthList = this.getLengthList(classStruct);
+		typeList = this.getTypeList(classStruct);
+		// valid check, null pointer
+		if ((typeList == null) || (lengthList == null)) {
+			return;
+		}
+
+		this.writeOneTuple(lengthList, typeList, realBlockNum, realBlockOffset, tuple);
+
+		System.out.printf("this.fakeBlockNum: %d, this.fakeBlockOffset: %d\n", this.fakeBlockNum, this.fakeBlockOffset);
+		// reset fakeBlockNum, fakeBlockOffset
+		this.fakeBlockOffset += 1;
+		if (this.fakeBlockOffset == virtualDisk.PAGESIZE) {
+			this.fakeBlockOffset = 0;
+			this.fakeBlockNum += 1;
+		}
+		System.out.println("INFO: insert successfully!");
+
+		return;
+	}
+
+	public void update(ArrayList<String> tuple) {
+		int realBlockNum, realBlockOffset;
+		ClassStruct classStruct;
+		ArrayList<Integer> lengthList, typeList;
+
+		classStruct = this.getClassStruct(this.currClassName);
+		if (classStruct == null) {
+			return;
+		}
+
+		// temp change, after Next()
+		if (this.fakeBlockOffset == 0) {
+			this.fakeBlockOffset = virtualDisk.PAGESIZE - 1;
+			this.fakeBlockNum -= 1;
+		} else {
+			this.fakeBlockOffset -= 1;
+		}
+		
+		// calculate offset & block
+		realBlockNum = this.fakeBlock2RealBlock();
+		realBlockOffset = this.fakeOffset2RealOffset();
+		// valid check
+		if (realBlockNum == virtualDisk.MAX_INTEGER) {
+			return;
+		}
+		if (realBlockOffset == virtualDisk.MAX_INTEGER) {
+			return;
+		}
+		lengthList = this.getLengthList(classStruct);
+		typeList = this.getTypeList(classStruct);
+		// valid check, null pointer
+		if ((typeList == null) || (lengthList == null)) {
+			return;
+		}
+
+		this.writeOneTuple(lengthList, typeList, realBlockNum, realBlockOffset, tuple);
+	
+		// reset fakeBlockNum, fakeBlockOffset
+		this.fakeBlockOffset += 1;
+		if (this.fakeBlockOffset == virtualDisk.PAGESIZE) {
+			this.fakeBlockOffset = 0;
+			this.fakeBlockNum += 1;
+		}
+	}
+
+	public void delete() {
+		int index, n_block, classId;
+		
+		classId = this.getClassId(this.currClassName);
+		// get first block
+		n_block = virtualDisk.MAX_INTEGER;
+		for (int i = 0; i < this.systemObjectTable.size() ; i++) {
+			if (this.systemObjectTable.get(i).classId == classId) {
+				n_block = this.systemObjectTable.get(i).blockId;
+				break;
+			}
+		}
+		// valid check
+		if ((n_block == virtualDisk.MAX_INTEGER) || (n_block == virtualDisk.CONFIG_BLOCK_FLAG) || (n_block == virtualDisk.FREE_BLOCK_FLAG)) {
+			return;
+		}
+
+		// current -1
+		index = (this.fakeBlockNum * virtualDisk.PAGESIZE) + this.fakeBlockOffset - 1;
+
+		if (index >= (this.blockSize * virtualDisk.BITS_OF_BYTE)) {
+			System.err.printf("ERROR: index(%d) to large!\n", index);
+			return;
+		} else {
+			this.freeOneTuple(n_block, index);
+
+			return;
 		}
 	}
 
