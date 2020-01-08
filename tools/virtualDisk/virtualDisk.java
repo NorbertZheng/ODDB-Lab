@@ -96,6 +96,9 @@ public class virtualDisk {
 		if (!systemTableFile.exists()) {
 			fileToolset.createFile(this.systemTableLocation + File.separator + virtualDisk.BIPOINTER_TABLE);
 		}
+
+		// get system table
+		getSystemTable();
 	}
 
 	/*
@@ -1529,6 +1532,52 @@ public class virtualDisk {
 
 			return classStruct;
 		}
+	}
+
+	/*
+	 * set classStruct
+	 * @Args:
+	 *  className(String)			: class name
+	 *  classStruct(ClassStruct)	: corresponding class struct
+	 * @Ret:
+	 *  None
+	 */
+	public void setClassStruct(String className, ClassStruct classStruct) {
+		// if already exist, just return, deleteClass will do the pointer delete
+		if (this.existClass(className)) {
+			return;
+		} else {
+			this.saveClassStruct(className, classStruct);
+			return;
+		}
+	}
+
+	/*
+	 * create class
+	 * @Args:
+	 *  className(String)			: class name
+	 *  classStruct(ClassStruct)	: corresponding class struct
+	 * @Ret:
+	 *  flag(boolean)				: whether create class successfully
+	 */
+	public boolean createClass(String className, ClassStruct classStruct) {
+		if (this.existClass(className)) {
+			return false;
+		} else {
+			classStruct.tupleNum = 0;
+			return this.saveClassStruct(className, classStruct);
+		}
+	}
+
+	/*
+	 * drop class
+	 * @Args:
+	 *  className(String)	: class name
+	 * @Ret:
+	 *  flag(boolean)		: whether drop class successfully
+	 */
+	public boolean dropClass(String className) {
+		return this.deleteClass(className);
 	}
 
 	private int getFreeId(String tableName) {
