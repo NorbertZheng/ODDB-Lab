@@ -13,7 +13,7 @@ public class virtualDisk {
 	final static int CONFIG_BLOCK_FLAG = 0x0000, FREE_BLOCK_FLAG = 0x0001;
 	final static int BYTES_OF_STRING_DATA = 20, BYTES_OF_INTEGER_DATA = 4;
 	final static String CLASS_TABLE = "CLASS_TABLE", ATTRIBUTE_TABLE = "ATTRIBUTE_TABLE", DEPUTY_TABLE = "DEPUTY_TABLE", DEPUTYRULE_TABLE = "DEPUTYRULE_TABLE", OBJECT_TABLE = "OBJECT_TABLE", SWITCHING_TABLE = "SWITCHING_TABLE", BIPOINTER_TABLE = "BIPOINTER_TABLE";
-	final static int ATTRTYPE_STRING = 0, ATTRTYPE_INTEGER = 1;
+	final static int ATTRTYPE_INTEGER = 0, ATTRTYPE_STRING = 1;
 	final static String charSet = "utf-8";
 
 	private String baseLocation;		// the location of the whole project
@@ -675,7 +675,7 @@ public class virtualDisk {
 	 * @Ret:
 	 *  n_block(int)	: n_block of free
 	 */
-	private int getFreeBlock() {
+	public int getFreeBlock() {
 		int n_block, blockEntry;
 
 		for (n_block = this.dataOffset; n_block < (this.diskSize / this.blockSize); n_block++) {
@@ -683,6 +683,10 @@ public class virtualDisk {
 			if (blockEntry == virtualDisk.FREE_BLOCK_FLAG) {
 				break;
 			}
+		}
+
+		if (n_block == (this.diskSize / this.blockSize)) {
+			n_block = virtualDisk.CONFIG_BLOCK_FLAG;
 		}
 
 		return n_block;
@@ -696,25 +700,26 @@ public class virtualDisk {
 	 * @Ret:
 	 *  flag(boolean)	: whether set successfully
 	 */
-	private boolean setNextBlock(int n_block, int n_nextBlock) {
+	public boolean setNextBlock(int n_block, int n_nextBlock) {
 		byte[] data;
 
 		if ((n_block < this.dataOffset) || (n_nextBlock < this.dataOffset)) {
 			return false;
 		} else {
 			if (this.getNextBlock(n_block) != n_block) {
-				return false;
-			} else {
-				data = virtualDisk.short2ByteArray(virtualDisk.int2UnsignedShort(n_nextBlock));
-				if (!this.write(this.getFATEntryBlock(n_block), this.getFATEntryOffset(n_block), data, this.entrySize)) {
+				if (n_block != n_nextBlock) {
 					return false;
 				}
-				if (!this.write(this.getFATEntryBlock(n_nextBlock), this.getFATEntryOffset(n_nextBlock), data, this.entrySize)) {
-					// should reverse here
-					return false;
-				}
-				return true;
 			}
+			data = virtualDisk.short2ByteArray(virtualDisk.int2UnsignedShort(n_nextBlock));
+			if (!this.write(this.getFATEntryBlock(n_block), this.getFATEntryOffset(n_block), data, this.entrySize)) {
+				return false;
+			}
+			if (!this.write(this.getFATEntryBlock(n_nextBlock), this.getFATEntryOffset(n_nextBlock), data, this.entrySize)) {
+				// should reverse here
+				return false;
+			}
+			return true;
 		}
 	}
 
@@ -877,19 +882,19 @@ public class virtualDisk {
 		return block;
 	}
 
-	private ArrayList<Integer> getTypeList(ClassStruct src) {
-		Attribute child;
+	public ArrayList<Integer> getTypeList(ClassStruct src) {
+		Attribute attr;
 		ArrayList<Integer> data;
 
 		if (src == null) {
 			return null;
 		} else {
 			data = new ArrayList<Integer>();
-			for (int i = 0; i < src.children.size(); i++) {
-				child = src.children.get(i);
-				if (child.attrType == virtualDisk.ATTRTYPE_INTEGER) {
+			for (int i = 0; i < src.attrList.size(); i++) {
+				attr = src.attrList.get(i);
+				if (attr.attrType == virtualDisk.ATTRTYPE_INTEGER) {
 					data.add(virtualDisk.ATTRTYPE_INTEGER);
-				} else if (child.attrType == virtualDisk.ATTRTYPE_STRING) {
+				} else if (attr.attrType == virtualDisk.ATTRTYPE_STRING) {
 					data.add(virtualDisk.ATTRTYPE_STRING);
 				} else {
 					return null;
@@ -899,19 +904,19 @@ public class virtualDisk {
 		}
 	}
 
-	private ArrayList<Integer> getLengthList(ClassStruct src) {
-		Attribute child;
+	public ArrayList<Integer> getLengthList(ClassStruct src) {
+		Attribute attr;
 		ArrayList<Integer> data;
 
 		if (src == null) {
 			return null;
 		} else {
 			data = new ArrayList<Integer>();
-			for (int i = 0; i < src.children.size(); i++) {
-				child = src.children.get(i);
-				if (child.attrType == virtualDisk.ATTRTYPE_INTEGER) {
+			for (int i = 0; i < src.attrList.size(); i++) {
+				attr = src.attrList.get(i);
+				if (attr.attrType == virtualDisk.ATTRTYPE_INTEGER) {
 					data.add(virtualDisk.BYTES_OF_INTEGER_DATA);
-				} else if (child.attrType == virtualDisk.ATTRTYPE_STRING) {
+				} else if (attr.attrType == virtualDisk.ATTRTYPE_STRING) {
 					data.add(virtualDisk.BYTES_OF_STRING_DATA);
 				} else {
 					return null;
@@ -921,7 +926,7 @@ public class virtualDisk {
 		}
 	}
 
-	private boolean writeOneTuple(ArrayList<Integer> lengthList, ArrayList<Integer> typeList, int n_block, int offset, ArrayList<String> src) {
+	public boolean writeOneTuple(ArrayList<Integer> lengthList, ArrayList<Integer> typeList, int n_block, int offset, ArrayList<String> src) {
 		int length = 0, count = 0;
 		int n_nextBlock;
 		byte[] temp, data, left, right;
@@ -946,10 +951,13 @@ public class virtualDisk {
 					}
 				} else if (typeList.get(i).intValue() == virtualDisk.ATTRTYPE_INTEGER) {
 					if (!virtualDisk.canParseInt(src.get(i))) {
+						System.err.println("ERROR: cannot parse string(" + src.get(i) + ") to int!");
 						return false;
 					} else {
 						temp = virtualDisk.int2ByteArray(Integer.parseInt(src.get(i)));
 					}
+				} else {
+					return false;
 				}
 				if (!virtualDisk.byteArrayCopy(data, temp, count)) {
 					return false;
@@ -971,6 +979,9 @@ public class virtualDisk {
 				n_nextBlock = this.getNextBlock(n_block);
 				if ((n_nextBlock == n_block) || (n_nextBlock == virtualDisk.FREE_BLOCK_FLAG) || (n_nextBlock == virtualDisk.CONFIG_BLOCK_FLAG)) {
 					n_nextBlock = this.getFreeBlock();
+					if (n_nextBlock == virtualDisk.CONFIG_BLOCK_FLAG) {
+						return false;
+					}
 					if (!this.setNextBlock(n_block, n_nextBlock)) {
 						return false;
 					}
@@ -995,13 +1006,14 @@ public class virtualDisk {
 	}
 
 	// forget 1 data > 1 block
-	private ArrayList<String> getOneTuple(ArrayList<Integer> lengthList, ArrayList<Integer> typeList, int n_block, int offset) {
+	public ArrayList<String> readOneTuple(ArrayList<Integer> lengthList, ArrayList<Integer> typeList, int n_block, int offset) {
 		int length = 0, count = 0, stringLength;
 		int n_nextBlock;
 		byte[] left, right, data, temp, tempString;
 		ArrayList<String> result;
 
 		if (lengthList.size() != typeList.size()) {
+			System.err.println("the size of lengthList not equals the size of typeList!");
 			return null;
 		} else {
 			result = new ArrayList<String>();
@@ -1031,6 +1043,7 @@ public class virtualDisk {
 			for (int i = 0; i < lengthList.size(); i++) {
 				temp = new byte[lengthList.get(i).intValue()];
 				if (!virtualDisk.byteArrayIntercept(temp, data, count)) {
+					System.err.println("ERROR: byteArrayIntercept fail!");
 					return null;
 				}
 				count += temp.length;
@@ -1042,11 +1055,15 @@ public class virtualDisk {
 					}
 					tempString = new byte[stringLength];
 					if (!virtualDisk.byteArrayIntercept(tempString, temp, 0)) {
+						System.err.println("ERROR: byteArrayIntercept fail!");
 						return null;
 					}
 					result.add(virtualDisk.byteArray2String(tempString));
 				} else if (typeList.get(i).intValue() == virtualDisk.ATTRTYPE_INTEGER) {
 					result.add(Integer.toString(virtualDisk.byteArray2Int(temp)));
+				} else {
+					System.err.println("ERROR: unknown attr type!");
+					return null;
 				}
 			}
 
@@ -1065,7 +1082,7 @@ public class virtualDisk {
 		if (src == null) {
 			return false;
 		} else {
-			return src.matches("\\d+");
+			return src.matches("^(\\-|\\+)?\\d+");
 		}
 	}
 
@@ -1107,8 +1124,10 @@ public class virtualDisk {
 	 */
 	public static boolean byteArrayIntercept(byte[] des, byte[] src, int offset) {
 		if ((des == null) || (src == null)) {
+			System.err.println("ERROR: src or des is null!");
 			return false;
-		} else if (des.length + offset >= src.length) {
+		} else if (des.length + offset > src.length) {
+			System.err.printf("ERROR: des.length(%d) + offset(%d) >= src.length(%d)!\n", des.length, offset, src.length);
 			return false;
 		} else {
 			for (int i = 0; i < des.length; i++) {
