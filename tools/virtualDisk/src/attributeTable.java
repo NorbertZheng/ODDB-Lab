@@ -1,7 +1,7 @@
 import java.util.ArrayList;
 
 public class attributeTable {
-	public final static int N_ATTR = 5;
+	public final static int N_ATTR = 7;
 	public final static int notVirtual = 0, isVirtual = 1;
 
 	public int classId;
@@ -9,13 +9,19 @@ public class attributeTable {
 	public String attrName;
 	public int attrType;
 	public int isDeputy;
+	// appendix
+	public int attrSize;
+	public String defaultValue;
 
 	public attributeTable() {
 		this.classId = 0;
 		this.attrId = 0;
 		this.attrName = null;
-		this.attrType = attributeTable.notVirtual;
-		this.isDeputy = 0;
+		this.attrType = 0;
+		this.isDeputy = attributeTable.notVirtual;
+		// appendix
+		this.attrSize = 0;
+		this.defaultValue = null;
 	}
 
 	public attributeTable(ArrayList<String> src) {
@@ -24,6 +30,9 @@ public class attributeTable {
 		this.attrName = src.get(2);
 		this.attrType = Integer.parseInt(src.get(3));
 		this.isDeputy = Integer.parseInt(src.get(4));
+		// appendix
+		this.attrSize = Integer.parseInt(src.get(5));
+		this.defaultValue = src.get(6);
 	}
 
 	public ArrayList<String> class2StringList() {
@@ -38,6 +47,12 @@ public class attributeTable {
 		}
 		data.add(Integer.toString(this.attrType));
 		data.add(Integer.toString(this.isDeputy));
+		data.add(Integer.toString(this.attrSize));
+		if (this.defaultValue == null) {
+			data.add("");
+		} else {
+			data.add(this.defaultValue);
+		}
 
 		return data;
 	}
