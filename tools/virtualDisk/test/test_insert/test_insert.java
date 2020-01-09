@@ -23,6 +23,7 @@ public class test_insert {
 		test_insert.baseLocation += subBaseLocation.get(i);
 
 		virtualDisk vdisk = new virtualDisk(test_insert.baseLocation);
+		System.out.println("vdisk init complete!");
 
 		// init classStruct
 		classStruct = new ClassStruct();
@@ -177,7 +178,7 @@ public class test_insert {
 		System.out.printf("before update, offset: %d\n", vdisk.getOffset());
 		tuple = new ArrayList<String>();
 		tuple.add(Integer.toString(3));
-		tuple.add("Hello aoso!");
+		tuple.add("Hello aosa!");
 		tuple.add(Integer.toString(-3));
 		vdisk.update(tuple);
 		System.out.printf("after insert, offset: %d\n", vdisk.getOffset());

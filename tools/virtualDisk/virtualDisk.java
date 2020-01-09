@@ -8,13 +8,13 @@ import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 public class virtualDisk {
-	final static int BITS_OF_BYTE = 8, N_OF_CONFIG_BLOCK = 1;
+	final static int BITS_OF_BYTE = 8, MAX_INTEGER = 0x7FFFFFFF;
 	final static int OFFSET_DISKSIZE = 0, OFFSET_BLOCKSIZE = 4, OFFSET_ENTRYSIZE = 8, OFFSET_DATAOFFSET = 12;
 	final static int CONFIG_BLOCK_FLAG = 0x0000, FREE_BLOCK_FLAG = 0x0001;
 	final static int BYTES_OF_STRING_DATA = 20, BYTES_OF_INTEGER_DATA = 4;
 	final static String CLASS_TABLE = "CLASS_TABLE", ATTRIBUTE_TABLE = "ATTRIBUTE_TABLE", DEPUTY_TABLE = "DEPUTY_TABLE", DEPUTYRULE_TABLE = "DEPUTYRULE_TABLE", OBJECT_TABLE = "OBJECT_TABLE", SWITCHING_TABLE = "SWITCHING_TABLE", BIPOINTER_TABLE = "BIPOINTER_TABLE";
 	final static int ATTRTYPE_INTEGER = 0, ATTRTYPE_STRING = 1;
-	final static int MAX_INTEGER = 0x7FFFFFFF;
+	final static int N_OF_CONFIG_BLOCK = 1, N_BUFFERLINE = 8;
 	final static String charSet = "utf-8";
 
 	public final static int PAGESIZE = 32;
@@ -40,6 +40,8 @@ public class virtualDisk {
 	private int fakeBlockNum, fakeBlockOffset;
 	private String currClassName;
 
+	private ArrayList<bufferLine> buffer;
+
 	public virtualDisk(String baseLocation) {
 		JSONArray configure;
 
@@ -58,6 +60,12 @@ public class virtualDisk {
 		this.blockSize = Integer.parseInt(configure.getJSONObject(0).get("blockSize").toString());
 		this.entrySize = Integer.parseInt(configure.getJSONObject(0).get("entrySize").toString());
 		this.dataOffset = (((1 << (this.entrySize * virtualDisk.BITS_OF_BYTE)) * this.entrySize) / this.blockSize) + virtualDisk.N_OF_CONFIG_BLOCK;
+
+		// init buffer, must before newVdisk()
+		this.buffer = new ArrayList<bufferLine>();
+		for (int i = 0; i < virtualDisk.N_BUFFERLINE; i++) {
+			this.buffer.add(new bufferLine(this.blockSize));
+		}
 
 		// check whether vdisk exists
 		File vdiskFile = new File(this.vdiskLocation);
@@ -676,6 +684,113 @@ public class virtualDisk {
 		}
 
 		return fileToolset.writeFile(this.systemTableLocation + File.separator + virtualDisk.BIPOINTER_TABLE, this.encode(data));
+	}
+
+	private int bufferHit(int n_block) {
+		if (this.buffer == null) {
+			System.err.printf("ERROR: (in virtualDisk.bufferHit) this.buffer does not exist!\n");
+			return virtualDisk.MAX_INTEGER;
+		} else if (n_block >= (this.diskSize / this.blockSize)) {
+			return virtualDisk.MAX_INTEGER;
+		} else {
+			for (int i = 0; i < this.buffer.size(); i++) {
+				if (this.buffer.get(i).n_block == n_block) {
+					return i;
+				}
+			}
+			return virtualDisk.MAX_INTEGER;
+		}
+	}
+
+	private int _findFreeBufferLine() {
+		int i;
+
+		if (this.buffer == null) {
+			return virtualDisk.MAX_INTEGER;
+		} else {
+			for (i = 0; i < this.buffer.size(); i++) {
+				if (this.buffer.get(i).isDirty == 0) {
+					return i;
+				}
+			}
+			/*
+			System.out.printf("INFO: (in virtualDisk._findFreeBufferLine) no bufferLine(%d totally) free!\n", this.buffer.size());
+			// get all bufferLine.n_block
+			for (i = 0; i < this.buffer.size() - 1; i++) {
+				System.out.printf("%d, ", this.buffer.get(i).n_block);
+			}
+			System.out.printf("%d\n", this.buffer.get(i).n_block);
+			*/
+			return virtualDisk.MAX_INTEGER;
+		}
+	}
+
+	private boolean writeBackBufferLine(int bufferLineIndex) {
+		if (bufferLineIndex >= virtualDisk.N_BUFFERLINE) {
+			System.err.printf("ERROR: (in virtualDisk.writeBackBufferLine) bufferLineIndex(%d) to large!\n", bufferLineIndex);
+			return false;
+		} else if (this.buffer == null) {
+			System.err.printf("ERROR: (in virtualDisk.writeBackBufferLine) this.buffer does not exist!\n");
+			return false;
+		} else {
+			if (this.buffer.get(bufferLineIndex).isDirty == 0) {
+				return true;
+			} else {
+				if (this.buffer.get(bufferLineIndex).buffer == null) {
+					System.err.printf("ERROR: (in virtualDisk.writeBackBufferLine) bufferLineIndex(%d).buffer == null!\n", bufferLineIndex);
+					return false;
+				} else {
+					this.buffer.get(bufferLineIndex).isDirty = 0;
+					return this._write(this.buffer.get(bufferLineIndex).n_block, 0, this.buffer.get(bufferLineIndex).buffer, this.blockSize);
+				}
+			}
+		}
+	}
+
+	private boolean readToBufferLine(int n_block) {
+		int freeBufferLineIndex;
+
+		if (this.buffer == null) {
+			return false;
+		} else {
+			if (this.bufferHit(n_block) != virtualDisk.MAX_INTEGER) {
+				return true;
+			} else {
+				freeBufferLineIndex = this._findFreeBufferLine();
+				if (freeBufferLineIndex != virtualDisk.MAX_INTEGER) {
+					this.buffer.get(freeBufferLineIndex).n_block = n_block;
+					this.buffer.get(freeBufferLineIndex).isDirty = 0;
+					this.buffer.get(freeBufferLineIndex).buffer = this._read(n_block, 0, this.blockSize);
+					return true;
+				} else {
+					if (!this.writeBackBufferLine(n_block % virtualDisk.N_BUFFERLINE)) {
+						return false;
+					} else {
+						freeBufferLineIndex = this._findFreeBufferLine();
+						// no need to check again
+						this.buffer.get(freeBufferLineIndex).n_block = n_block;
+						this.buffer.get(freeBufferLineIndex).isDirty = 0;
+						this.buffer.get(freeBufferLineIndex).buffer = this._read(n_block, 0, this.blockSize);
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	private boolean _flushToDisk() {
+		if (this.buffer == null) {
+			System.err.println("ERROR: (in virtualDisk._flushToDisk) this.buffer == null!");
+			return true;
+		} else {
+			for (int i = 0; i < virtualDisk.N_BUFFERLINE; i++) {
+				if (!this.writeBackBufferLine(i)) {
+					System.err.printf("ERROR: (in virtualDisk._flushToDisk) bufferLine(%d) write back error!\n", i);
+					return false;
+				}
+			}
+			return true;
+		}
 	}
 
 	/*
@@ -1361,6 +1476,129 @@ public class virtualDisk {
 		return data;
 	}
 
+	private boolean write(int n_block, int offset, byte[] data, int length) {
+		int bufferLineIndex;
+		byte[] left, right;
+
+		bufferLineIndex = this.bufferHit(n_block);
+		if (bufferLineIndex != virtualDisk.MAX_INTEGER) {
+			if (offset + length <= this.blockSize) {
+				if (!virtualDisk.byteArrayCopy(this.buffer.get(bufferLineIndex).buffer, data, offset)) {
+					return false;
+				} else {
+					this.buffer.get(bufferLineIndex).isDirty = 1;
+					return true;
+				}
+			} else {
+				left = new byte[this.blockSize - offset];
+				if (!virtualDisk.byteArrayIntercept(left, data, 0)) {
+					return false;
+				} else {
+					// write n_block
+					if (!virtualDisk.byteArrayCopy(this.buffer.get(bufferLineIndex).buffer, left, offset)) {
+						return false;
+					}
+					this.buffer.get(bufferLineIndex).isDirty = 1;
+					// n_block + 1
+					bufferLineIndex = this.bufferHit(n_block + 1);
+					if (bufferLineIndex != virtualDisk.MAX_INTEGER) {
+						right = new byte[length + offset - this.blockSize];
+						if (!virtualDisk.byteArrayIntercept(right, data, this.blockSize - offset)) {
+							return false;
+						} else {
+							if (!virtualDisk.byteArrayCopy(this.buffer.get(bufferLineIndex).buffer, right, 0)) {
+								return false;
+							} else {
+								this.buffer.get(bufferLineIndex).isDirty = 1;
+								return true;
+							}
+						}
+					} else {
+						// not hit
+						if (!this.readToBufferLine(n_block + 1)) {
+							return false;
+						} else {
+							bufferLineIndex = this.bufferHit(n_block + 1);
+							// no need to check again
+							right = new byte[length + offset - this.blockSize];
+							if (!virtualDisk.byteArrayIntercept(right, data, this.blockSize - offset)) {
+								return false;
+							} else {
+								if (!virtualDisk.byteArrayCopy(this.buffer.get(bufferLineIndex).buffer, right, 0)) {
+									return false;
+								} else {
+									this.buffer.get(bufferLineIndex).isDirty = 1;
+									return true;
+								}
+							}
+						}
+					}
+				}
+			}
+		} else {
+			// not hit
+			if (!this.readToBufferLine(n_block)) {
+				return false;
+			} else {
+				bufferLineIndex = this.bufferHit(n_block);
+				// no need to check again
+				if (offset + length <= this.blockSize) {
+					if (!virtualDisk.byteArrayCopy(this.buffer.get(bufferLineIndex).buffer, data, offset)) {
+						return false;
+					} else {
+						this.buffer.get(bufferLineIndex).isDirty = 1;
+						return true;
+					}
+				} else {
+					left = new byte[this.blockSize - offset];
+					if (!virtualDisk.byteArrayIntercept(left, data, 0)) {
+						return false;
+					} else {
+						// write n_block
+						if (!virtualDisk.byteArrayCopy(this.buffer.get(bufferLineIndex).buffer, left, offset)) {
+							return false;
+						}
+						this.buffer.get(bufferLineIndex).isDirty = 1;
+						// n_block + 1
+						bufferLineIndex = this.bufferHit(n_block + 1);
+						if (bufferLineIndex != virtualDisk.MAX_INTEGER) {
+							right = new byte[length + offset - this.blockSize];
+							if (!virtualDisk.byteArrayIntercept(right, data, this.blockSize - offset)) {
+								return false;
+							} else {
+								if (!virtualDisk.byteArrayCopy(this.buffer.get(bufferLineIndex).buffer, right, 0)) {
+									return false;
+								} else {
+									this.buffer.get(bufferLineIndex).isDirty = 1;
+									return true;
+								}
+							}
+						} else {
+							// not hit
+							if (!this.readToBufferLine(n_block + 1)) {
+								return false;
+							} else {
+								bufferLineIndex = this.bufferHit(n_block + 1);
+								// no need to check again
+								right = new byte[length + offset - this.blockSize];
+								if (!virtualDisk.byteArrayIntercept(right, data, this.blockSize - offset)) {
+									return false;
+								} else {
+									if (!virtualDisk.byteArrayCopy(this.buffer.get(bufferLineIndex).buffer, right, 0)) {
+										return false;
+									} else {
+										this.buffer.get(bufferLineIndex).isDirty = 1;
+										return true;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	/*
 	 * virtualDisk write
 	 * @Args:
@@ -1371,7 +1609,7 @@ public class virtualDisk {
 	 * @Ret:
 	 *  flag(boolean)	: whether write successfully
 	 */
-	private boolean write(int n_block, int offset, byte[] data, int length) {
+	private boolean _write(int n_block, int offset, byte[] data, int length) {
 		int filePointer = (n_block * this.blockSize) + offset;
 
 		try {
@@ -1395,6 +1633,125 @@ public class virtualDisk {
 		}
 	}
 
+	private byte[] read(int n_block, int offset, int length) {
+		int bufferLineIndex;
+		byte[] data, left, right;
+
+		bufferLineIndex = this.bufferHit(n_block);
+		if (bufferLineIndex != virtualDisk.MAX_INTEGER) {
+			if (offset + length <= this.blockSize) {
+				data = new byte[length];
+				if (!virtualDisk.byteArrayIntercept(data, this.buffer.get(bufferLineIndex).buffer, offset)) {
+					return null;
+				} else {
+					return data;
+				}
+			} else {
+				left = new byte[this.blockSize - offset];
+				if (!virtualDisk.byteArrayIntercept(left, this.buffer.get(bufferLineIndex).buffer, offset)) {
+					return null;
+				} else {
+					bufferLineIndex = this.bufferHit(n_block + 1);
+					if (bufferLineIndex != virtualDisk.MAX_INTEGER) {
+						right = new byte[length + offset - this.blockSize];
+						if (!virtualDisk.byteArrayIntercept(right, this.buffer.get(bufferLineIndex).buffer, 0)) {
+							return null;
+						} else {
+							data = new byte[length];
+							if (!virtualDisk.byteArrayCopy(data, left, 0)) {
+								return null;
+							}
+							if (!virtualDisk.byteArrayCopy(data, right, this.blockSize - offset)) {
+								return null;
+							}
+							return data;
+						}
+					} else {
+						// not hit
+						if (!this.readToBufferLine(n_block + 1)) {
+							return null;
+						} else {
+							bufferLineIndex = this.bufferHit(n_block + 1);
+							// no need to check again
+							right = new byte[length + offset - this.blockSize];
+							if (!virtualDisk.byteArrayIntercept(right, this.buffer.get(bufferLineIndex).buffer, 0)) {
+								return null;
+							} else {
+								data = new byte[length];
+								if (!virtualDisk.byteArrayCopy(data, left, 0)) {
+									return null;
+								}
+								if (!virtualDisk.byteArrayCopy(data, right, this.blockSize - offset)) {
+									return null;
+								}
+								return data;
+							}
+						}
+					}
+				}
+			}
+		} else {
+			// not hit
+			if (!this.readToBufferLine(n_block)) {
+				return null;
+			} else {
+				bufferLineIndex = this.bufferHit(n_block);
+				// no need to check again
+				if (offset + length <= this.blockSize) {
+					data = new byte[length];
+					if (!virtualDisk.byteArrayIntercept(data, this.buffer.get(bufferLineIndex).buffer, offset)) {
+						return null;
+					} else {
+						return data;
+					}
+				} else {
+					left = new byte[this.blockSize - offset];
+					if (!virtualDisk.byteArrayIntercept(left, this.buffer.get(bufferLineIndex).buffer, offset)) {
+						return null;
+					} else {
+						bufferLineIndex = this.bufferHit(n_block + 1);
+						if (bufferLineIndex != virtualDisk.MAX_INTEGER) {
+							right = new byte[length + offset - this.blockSize];
+							if (!virtualDisk.byteArrayIntercept(right, this.buffer.get(bufferLineIndex).buffer, 0)) {
+								return null;
+							} else {
+								data = new byte[length];
+								if (!virtualDisk.byteArrayCopy(data, left, 0)) {
+									return null;
+								}
+								if (!virtualDisk.byteArrayCopy(data, right, this.blockSize - offset)) {
+									return null;
+								}
+								return data;
+							}
+						} else {
+							// not hit
+							if (!this.readToBufferLine(n_block + 1)) {
+								return null;
+							} else {
+								bufferLineIndex = this.bufferHit(n_block + 1);
+								// no need to check again
+								right = new byte[length + offset - this.blockSize];
+								if (!virtualDisk.byteArrayIntercept(right, this.buffer.get(bufferLineIndex).buffer, 0)) {
+									return null;
+								} else {
+									data = new byte[length];
+									if (!virtualDisk.byteArrayCopy(data, left, 0)) {
+										return null;
+									}
+									if (!virtualDisk.byteArrayCopy(data, right, this.blockSize - offset)) {
+										return null;
+									}
+									return data;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	/*
 	 * virtualDisk write
 	 * @Args:
@@ -1404,7 +1761,7 @@ public class virtualDisk {
 	 * @Ret:
 	 *  data(byte[])	: read data
 	 */
-	private byte[] read(int n_block, int offset, int length) {
+	private byte[] _read(int n_block, int offset, int length) {
 		int filePointer = (n_block * this.blockSize) + offset;
 		byte[] data = new byte[length];
 
@@ -1908,6 +2265,7 @@ public class virtualDisk {
 				data = new byte[this.blockSize];
 				virtualDisk.clearByteArray(data);
 				if (!this.write(n_block, 0, data, this.blockSize)) {
+					System.err.println("ERROR: (in virtualDisk.saveClassStruct) write fail!");
 					return false;
 				}
 				n_nextBlock = this.getFreeBlock();
@@ -2354,6 +2712,7 @@ public class virtualDisk {
 		classId = this.getClassId(this.currClassName);
 		classStruct = this.getClassStruct(this.currClassName);
 		if (classStruct == null) {
+			System.err.println("ERROR: (in virtualDisk.insert) classStruct == null!");
 			return;
 		}
 		// get first block
@@ -2366,15 +2725,18 @@ public class virtualDisk {
 		}
 		// valid check
 		if ((n_block == virtualDisk.MAX_INTEGER) || (n_block == virtualDisk.CONFIG_BLOCK_FLAG) || (n_block == virtualDisk.FREE_BLOCK_FLAG)) {
+			System.err.println("ERROR: (in virtualDisk.insert) n_block == virtualDisk.MAX_INTEGER!");
 			return;
 		}
 
 		index = this.getFreeTuple(n_block);
 		if (!ocupyOneTuple(n_block, index)) {
+			System.err.println("ERROR: (in virtualDisk.insert) ocupyOneTuple() fail!");
 			return;
 		}
 		// valid check
 		if (index == virtualDisk.MAX_INTEGER) {
+			System.err.println("ERROR: (in virtualDisk.insert) index == virtualDisk.MAX_INTEGER!");
 			return;
 		} else {
 			this.fakeBlockNum = index / virtualDisk.PAGESIZE;
@@ -2386,15 +2748,18 @@ public class virtualDisk {
 		realBlockOffset = this.fakeOffset2RealOffset();
 		// valid check
 		if (realBlockNum == virtualDisk.MAX_INTEGER) {
+			System.err.println("ERROR: (in virtualDisk.insert) realBlockNum == virtualDisk.MAX_INTEGER!");
 			return;
 		}
 		if (realBlockOffset == virtualDisk.MAX_INTEGER) {
+			System.err.println("ERROR: (in virtualDisk.insert) realBlockOffset == virtualDisk.MAX_INTEGER!");
 			return;
 		}
 		lengthList = this.getLengthList(classStruct);
 		typeList = this.getTypeList(classStruct);
 		// valid check, null pointer
 		if ((typeList == null) || (lengthList == null)) {
+			System.err.println("ERROR: (in virtualDisk.insert) (typeList == null) || (lengthList == null)!");
 			return;
 		}
 
