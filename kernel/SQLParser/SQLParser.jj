@@ -1,28 +1,553 @@
 options {
-	STATIC = false;
-	DEBUG_PARSER = true;
-	UNICODE_INPUT = true;
+  STATIC = false;
+  LOOKAHEAD = 2;
+  DEBUG_PARSER = true;
 }
+
 
 PARSER_BEGIN(SQLParser)
-import java.io.Reader;
-import java.io.StringReader;
 
-public class SQLParser {
+import java.util.ArrayList;
+import java.io.InputStream;
+import java.io.ByteArrayInputStream;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 
-	public static void main(String[] args) {
-		for (String arg : args) {
-			try {
-				System.out.println(evaluate(arg));
-			} catch (ParseException ex) {
-				System.err.println(ex.getMessage());
-			}
-		}
-	}
+public class SQLParser
+{
 
-	public static SQLNode evaluate(String src) throws ParseException {
-		Reader reader = new StringReader(src);
-		return new SQLParser(reader).expr();
-	}
+  public static ParseResult sqlParse(String sqlInput)
+  {
+    try
+    {
+      InputStream s=new ByteArrayInputStream(sqlInput.getBytes());
+      SQLParser p = new SQLParser(s);
+      return p.start();
+    }
+    catch(Exception e)
+    {
+      System.out.println(e.getMessage());
+      e.printStackTrace();
+    }
+    return null;
+  }
 }
+
 PARSER_END(SQLParser)
+
+SKIP : { " "| "\n" | "\r" | "\r\n" }
+
+TOKEN:{
+  <CREATE:"CREATE"|"create">
+  |<CLASS: "CLASS"|"class">
+  |<INT:"INT"|"int">
+  |<CHAR:"CHAR"|"char">
+  |<SEMICOLON: ";">
+  |<LEFT_BRACKET:"(">
+  |<COMMA:",">
+  |<RIGHT_BRACKET:")">
+  |<SELECTDEPUTY:"SELECTDEPUTY"|"selectdeputy">
+  |<AS:"AS"|"as">
+  |<FROM:"FROM"|"from">
+  |<WHERE:"WHERE"|"where">
+  |<DROP:"DROP"|"drop">
+  |<INSERT:"INSERT"|"insert">
+  |<INTO:"INTO"|"into">
+  |<VALUES:"VALUES"|"values">
+  |<DELETE:"DELETE"|"delete">
+  |<SELECT:"SELECT"|"select">
+  |<UPDATE:"UPDATE"|"update">
+  |<SET:"SET"|"set">
+  |<OR:"OR"|"or">
+  |<AND:"AND"|"and">
+  |<NOT:"NOT"|"not">
+  |<DOT:".">
+  |<CROSS:"->">
+  |<SINGLE:"'"|"\"">
+  |<BIGGEREQUAL:">=">
+  |<LESSEQUAL:"<=">
+  |<NOTEQUAL:"<>">
+  |<EQUAL:"=">
+  |<BIGGER:">">
+  |<LESS:"<">
+  |<PLUS:"+">
+  |<MINUS:"-">
+  |<MULT:"*">
+  |<DIV:"/">
+  |<STRING: ("'"|"\"")(["A"-"Z","a"-"z","0"-"9", " ", "\r", "\n"])+("'"|"\"")>
+  |<INTNUMBER:(["0"-"9"])+>  //����
+  |<ID:(["A"-"Z","a"-"z","0"-"9"])+>
+
+}
+
+ParseResult start():
+{
+  ParseResult result;
+}
+{
+  (result = createClass()
+  |result = createSelectDeputy()
+  |result = drop()
+  |result = insert()
+  |result = delete()
+  |result = select()
+  |result = update())
+  <SEMICOLON>
+  {
+    return result;
+  }
+}
+
+ParseResult createClass():
+{
+  ParseResult result = new ParseResult();
+  ParseResult selectResult;
+  Token className;
+}
+{
+  <CREATE> <CLASS>
+  {
+    result.Type = 0;
+  }
+  className = <ID>
+  {
+    result.className = className.image;
+  }
+  <LEFT_BRACKET>
+    result.attrList = attributeDef()
+  {
+
+  }
+  <RIGHT_BRACKET>
+  ( selectResult = select()
+  {
+    result.selectClassName = selectResult.selectClassName;
+  })?
+  {
+    return result;
+  }
+}
+
+ParseResult createSelectDeputy():
+{
+  ParseResult result = new ParseResult();
+  ParseResult selectResult;
+  Token className;
+}
+{
+  <CREATE> <SELECTDEPUTY>
+  {
+    result.Type = 1;
+  }
+  className = <ID>
+  {
+    result.className = className.image;
+  }
+  (<LEFT_BRACKET>
+   result.attrList = attributeDef()
+   <RIGHT_BRACKET>
+  )*
+  selectResult = select()
+  {
+    result.selectClassName = selectResult.selectClassName;
+    result.attrNameList = selectResult.attrNameList;
+    result.where = selectResult.where;
+  }
+  {
+    return result;
+  }
+}
+
+ParseResult drop():
+{
+  ParseResult result;
+  Token className;
+}
+{
+  <DROP> <CLASS> className = <ID>
+  {
+    result = new ParseResult();
+    result.Type = 2;
+    result.className = className.image;
+    return result;
+  }
+}
+
+ParseResult insert():
+{
+  ParseResult result = new ParseResult();
+  ArrayList<String> valList = new ArrayList<String>();
+  Token className;
+  Token val;
+}
+{
+  <INSERT> <INTO> className = <ID>
+  <LEFT_BRACKET>
+  <ID>
+  (
+  <COMMA>
+  <ID>
+  )*
+  <RIGHT_BRACKET>
+  <VALUES>
+  {
+    result.Type = 3;
+    result.className = className.image;
+  }
+  <LEFT_BRACKET>
+  ( ((val = <INTNUMBER>) { valList.add(val.image); }) |
+  (( val = <STRING> )
+  {
+    valList.add(val.image.substring(1, val.image.length() - 1));
+  }))
+  (
+  <COMMA> ( ((val = <INTNUMBER>) { valList.add(val.image); }) |
+  (( val = <STRING> )
+  {
+    valList.add(val.image.substring(1, val.image.length() - 1));
+  }))
+  )*
+  <RIGHT_BRACKET>
+  {
+    result.valueList = valList;
+    return result;
+  }
+}
+
+ParseResult update():
+{
+  Token className;
+  Token attrName;
+  Token val;
+  ArrayList<AttrNameTuple> attrNameList = new ArrayList<AttrNameTuple>();
+  AttrNameTuple attrNameRename;
+  ArrayList<String> valList = new ArrayList<String>();
+  WhereClause where = null;
+}
+{
+  <UPDATE> className = <ID> <SET>
+  attrName = <ID> <EQUAL>
+  ((val = <INTNUMBER> {valList.add(val.image);})
+   |(val = <STRING>   {valList.add(val.image.substring(1, val.image.length()-1));}))
+   {
+     attrNameRename = new AttrNameTuple(attrName.image, null);
+     attrNameList.add(attrNameRename);
+   }
+  (<COMMA>
+  attrName = <ID> <EQUAL>
+  ((val = <INTNUMBER>{valList.add(val.image);})
+   |(val = <STRING>{valList.add(val.image.substring(1, val.image.length()-1));}))
+   {
+     attrNameRename = new AttrNameTuple(attrName.image, null);
+     attrNameList.add(attrNameRename);
+   }
+  )*
+  (<WHERE>
+  where = where_expr())?
+  {
+    ParseResult result = new ParseResult();
+    result.Type = 7;
+    result.className = className.image;
+    result.valueList = valList;
+    result.attrNameList = attrNameList;
+    result.where = where;
+    return result;
+  }
+}
+
+
+ParseResult delete():
+{
+  ParseResult result = new ParseResult();
+  Token className;
+  WhereClause where = new WhereClause();
+}
+{
+  <DELETE> <FROM> className = <ID> <WHERE>
+  where = where_expr()
+  {
+    result.Type = 4;
+    result.className = className.image;
+    result.where = where;
+    return result;
+  }
+}
+
+ParseResult select():
+{
+  ParseResult result = new ParseResult();
+  ArrayList<AttrNameTuple> selectAttr = new ArrayList<AttrNameTuple>();
+  Token className;
+  Token selectClassName;
+  Token attr;
+  AttrNameTuple attrtuple1 = new AttrNameTuple();
+  WhereClause where = null;
+}
+{
+  <SELECT>
+  (
+      (selectAttr = attributeSelect() <FROM> selectClassName = <ID> (<WHERE>
+      where = where_expr())?
+      {
+        result.Type = 5;
+        result.attrNameList = selectAttr;
+        result.selectClassName = selectClassName.image;
+        result.where = where;
+        return result;
+      }
+      )
+  |
+      (
+      <ID>
+      <CROSS>
+      <ID>
+      <CROSS>
+      className = <ID>
+      <DOT>
+      attr = <ID>
+      {
+          attrtuple1.attrName = attr.image;
+          selectAttr.add(attrtuple1);
+      }
+      (
+      <COMMA>
+      <ID>
+      <CROSS>
+      <ID>
+      <CROSS>
+      <ID>
+      <DOT>
+      attr = <ID>
+      {
+          AttrNameTuple attrtuple2 = new AttrNameTuple();
+          attrtuple2.attrName = attr.image;
+          selectAttr.add(attrtuple2);
+      }
+      )*
+      <FROM> selectClassName = <ID> (<WHERE>
+      where = where_expr())?
+      {
+        result.Type = 6;
+        result.selectClassName = selectClassName.image;
+        result.attrNameList = selectAttr;
+        result.className = className.image;
+        result.where = where;
+        return result;
+      }
+      )
+  )
+}
+
+
+
+
+ArrayList<Attribute> attributeDef():
+{
+  Token attrName;
+  ArrayList<Attribute> result = new ArrayList<Attribute>();
+  Attribute attr;
+}
+{
+    attrName = <ID>
+    (
+    <INT>{attr = new Attribute(attrName.image, 0,4, null);result.add(attr);}
+    |
+    <CHAR>{attr = new Attribute(attrName.image, 1,10, null);result.add(attr);}
+    )
+    (
+    <COMMA>
+    attrName = <ID>
+    (
+    <INT>{attr = new Attribute(attrName.image, 0,4, null);result.add(attr);}
+    |
+    <CHAR>{attr = new Attribute(attrName.image, 1,10, null);result.add(attr);}
+    ))*
+  {
+    return result;
+  }
+}
+
+
+
+ArrayList<AttrNameTuple> attributeSelect():
+{
+  Token attrName;
+  Token attrRename;
+  String name = "";
+  ArrayList<AttrNameTuple> result = new ArrayList<AttrNameTuple>();
+  AttrNameTuple n;
+}
+{
+  ((attrName = <ID> | attrName = <INTNUMBER> | attrName = <PLUS>
+  | attrName = <MINUS> | attrName = <MULT> | attrName = <DIV>
+  | attrName = <LEFT_BRACKET> | attrName = <RIGHT_BRACKET>)
+  {
+    name = name + attrName.image;
+  })+
+  {
+    n = new AttrNameTuple(name, null);
+    name = "";
+  }
+  (<AS> attrRename = <ID>
+  {
+    n.attrRename = attrRename.image;
+  })?
+  {
+    result.add(n);
+  }
+  (
+  <COMMA> ((attrName = <ID> | attrName = <INTNUMBER> | attrName = <PLUS>
+  | attrName = <MINUS> | attrName = <MULT> | attrName = <DIV>
+  | attrName = <LEFT_BRACKET> | attrName = <RIGHT_BRACKET>)
+  {
+    name = name + attrName.image;
+  })+
+  {
+    n = new AttrNameTuple(name, null);
+    name = "";
+  }
+  (<AS> attrRename = <ID>
+  {
+    n.attrRename = attrRename.image;
+  })?
+  {
+    result.add(n);
+  }
+  )*
+  {
+    return result;
+  }
+}
+
+
+WhereClause where_expr():
+{
+  WhereClause left;
+  WhereClause right = null;
+  WhereClause result;
+}
+{
+  left = and_expr()
+  ( <OR> right = where_expr())?
+  {
+    if(right == null ){
+      return left;
+    }else{
+      result = new WhereClause();
+      result.operationType = 8;
+      result.left = left;
+      result.right = right;
+      return result;
+    }
+  }
+}
+
+WhereClause and_expr():
+{
+  WhereClause left;
+  WhereClause right = null;
+  WhereClause result;
+}
+{
+  left = not_expr()
+  ( <AND> right = and_expr())?
+  {
+    if(right == null ){
+      return left;
+    }else{
+      result = new WhereClause();
+      result.operationType = 7;
+      result.left = left;
+      result.right = right;
+      return result;
+    }
+  }
+}
+
+WhereClause not_expr():
+{
+  WhereClause left;
+  WhereClause right = null;
+  WhereClause result;
+}
+{
+  (
+  (<NOT> left = not_expr()
+  {
+    result = new WhereClause();
+    result.operationType = 6;
+    result.left = left;
+  })
+  | (result = cmp_expr())
+  | ( <LEFT_BRACKET> result = where_expr() <RIGHT_BRACKET>)
+  )
+  {
+    return result;
+  }
+}
+
+WhereClause cmp_expr():
+{
+  Token numOrID;
+  WhereClause left;
+  WhereClause right = null;
+  WhereClause result = null;
+}
+{
+  (
+  (numOrID = <INTNUMBER>
+  { left = new WhereClause();
+    left.operationType = 9; left.valueInt = (new Integer(numOrID.image)).intValue(); })
+  |
+  (numOrID = <ID>
+  { left = new WhereClause();
+    left.operationType = 10; left.valueString = numOrID.image;
+  })
+  )
+  [
+  ((<BIGGER>
+  { result = new WhereClause();
+    result.operationType = 0;})
+  |(<LESS>
+  { result = new WhereClause();
+    result.operationType = 1;})
+  |(<EQUAL>
+  { result = new WhereClause();
+    result.operationType = 2;})
+  |(<NOTEQUAL>
+  { result = new WhereClause();
+    result.operationType = 3;})
+  |(<BIGGEREQUAL>
+  { result = new WhereClause();
+    result.operationType = 4;})
+  |(<LESSEQUAL>
+  { result = new WhereClause();
+    result.operationType = 5;})
+  )
+  (
+  (numOrID = <INTNUMBER>
+  { right = new WhereClause();
+    right.operationType = 9;
+    right.valueInt = (new Integer(numOrID.image)).intValue();
+  })
+  |
+  (numOrID = <STRING>
+  {
+    right = new WhereClause();
+    right.operationType = 10;
+    right.valueString = numOrID.image.substring(1, numOrID.image.length()-1);
+  }
+  )
+  )
+  ]
+  {
+    if (result == null){
+      return left;
+    }else{
+      result.left = left;
+      result.right = right;
+      return result;
+    }
+  }
+}
