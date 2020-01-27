@@ -18,9 +18,24 @@ public class whereNode {
 		String result = "";
 
 		if (this.type == whereNode.NOT) {
-			result = "NOT " + this.left.toString();
+			result = "NOT ";
+			if ((this.left.type == whereNode.OR) || (this.left.type == whereNode.AND)) {
+				result += "(" + this.left.toString() + ")";
+			} else {
+				result += this.left.toString();
+			}
 		} else if (this.type == whereNode.AND) {
-			result = this.left.toString() + " AND " + this.right.toString();
+			if (this.left.type == whereNode.OR) {
+				result += "(" + this.left.toString() + ")";
+			} else {
+				result += this.left.toString();
+			}
+			result += " AND ";
+			if (this.right.type == whereNode.OR) {
+				result += "(" + this.right.toString() + ")";
+			} else {
+				result += this.right.toString();
+			}
 		} else if (this.type == whereNode.OR) {
 			result = this.left.toString() + " OR " + this.right.toString();
 		} else if (this.type == whereNode.MORE) {

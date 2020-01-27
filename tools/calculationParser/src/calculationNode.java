@@ -13,5 +13,47 @@ public class calculationNode {
 		this.left = null;
 		this.right = null;
 	}
+
+	public String toString() {
+		String result = "";
+
+		if (this.operator == calculationNode.PLUS) {
+			result = this.left.toString() + " + " + this.right.toString();
+		} else if (this.operator == calculationNode.MINUS) {
+			result = this.left.toString() + " - " + this.right.toString();
+		} else if (this.operator == calculationNode.MULTIPLY) {
+			if ((this.left.operator == calculationNode.PLUS) || (this.left.operator == calculationNode.MINUS)) {
+				result += "(" + this.left.toString() + ")";
+			} else {
+				result += this.left.toString();
+			}
+			result += " * ";
+			if ((this.right.operator == calculationNode.PLUS) || (this.right.operator == calculationNode.MINUS)) {
+				result += "(" + this.right.toString() + ")";
+			} else {
+				result += this.right.toString();
+			}
+		} else if (this.operator == calculationNode.DIVIDE) {
+			if ((this.left.operator == calculationNode.PLUS) || (this.left.operator == calculationNode.MINUS)) {
+				result += "(" + this.left.toString() + ")";
+			} else {
+				result += this.left.toString();
+			}
+			result += " / ";
+			if ((this.right.operator == calculationNode.PLUS) || (this.right.operator == calculationNode.MINUS)) {
+				result += "(" + this.right.toString() + ")";
+			} else {
+				result += this.right.toString();
+			}
+		} else if (this.operator == calculationNode.INTEGER) {
+			result = Integer.toString(this.valueInt);
+		} else if (this.operator == calculationNode.IDENTIFIER) {
+			result = this.valueString;
+		} else {
+			result = "";
+		}
+
+		return result;
+	}
 }
 
