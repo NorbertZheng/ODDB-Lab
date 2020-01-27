@@ -7,6 +7,7 @@ options {
 PARSER_BEGIN(SQLParser)
 import java.io.Reader;
 import java.io.StringReader;
+import java.util.ArrayList;
 
 public class SQLParser {
 
@@ -22,7 +23,595 @@ public class SQLParser {
 
 	public static SQLNode evaluate(String src) throws ParseException {
 		Reader reader = new StringReader(src);
-		return new SQLParser(reader).expr();
+		return new SQLParser(reader).parse();
 	}
 }
 PARSER_END(SQLParser)
+
+/**********************/
+/*       TOKEN        */
+/**********************/
+SPECIAL_TOKEN: {
+		<SPACES			:	([" ", "\t", "\n", "\r", "\f"])+>
+}
+
+TOKEN: {
+		<CREATE			:	("c"|"C")("r"|"R")("e"|"E")("a"|"A")("t"|"T")("e"|"E")>
+	|	<DROP			:	("d"|"D")("r"|"R")("o"|"O")("p"|"P")>
+	|	<CLASS			:	("c"|"C")("l"|"L")("a"|"A")("s"|"S")("s"|"S")>
+	|	<SELECTDEPUTY	:	("s"|"S")("e"|"E")("l"|"L")("e"|"E")("c"|"C")("t"|"T")("d"|"D")("e"|"E")("p"|"P")("u"|"U")("t"|"T")("y"|"Y")>
+	|	<AS				:	("a"|"A")("s"|"S")>
+	|	<INSERT			:	("i"|"I")("n"|"N")("s"|"S")("e"|"E")("r"|"R")("t"|"T")>
+	|	<INTO			:	("i"|"I")("n"|"N")("t"|"T")("o"|"O")>
+	|	<VALUES			:	("v"|"V")("a"|"A")("l"|"L")("u"|"U")("e"|"E")("s"|"S")>
+	|	<SELECT			:	("s"|"S")("e"|"E")("l"|"L")("e"|"E")("c"|"C")("t"|"T")>
+	|	<UPDATE			:	("u"|"U")("p"|"P")("d"|"D")("a"|"A")("t"|"T")("e"|"E")>
+	|	<SET			:	("s"|"S")("e"|"E")("t"|"T")>
+	|	<DELETE			:	("d"|"D")("e"|"E")("l"|"L")("e"|"E")("t"|"T")("e"|"E")>
+	|	<FROM			:	("f"|"F")("r"|"R")("o"|"O")("m"|"M")>
+	|	<WHERE			:	("w"|"W")("h"|"H")("e"|"E")("r"|"R")("e"|"E")>
+	|	<INT			:	("i"|"I")("n"|"N")("t"|"T")>
+	|	<CHAR			:	("c"|"C")("h"|"H")("a"|"A")("r"|"R")>
+	|	<NOT			:	("n"|"N")("o"|"O")("t"|"T")>
+	|	<AND			:	("a"|"A")("n"|"N")("d"|"D")>
+	|	<OR				:	("o"|"O")("r"|"R")>
+	|	<INTEGER		:	(["0"-"9"])+>
+	|	<IDENTIFIER		:	["a"-"z", "A"-"Z", "_"](["a"-"z", "A"-"Z", "_", "0"-"9"])*>
+}
+
+// STRING
+MORE: {
+		<"\"">						: IN_STRING			// rule1
+}
+<IN_STRING> MORE: {
+		<(~["\"", "\\", "\n", "\r"])+>					// rule2
+	|	<"\\" (["0"-"7"]){3}>							// rule3
+	|	<"\\" ~[]>										// rule4
+}
+<IN_STRING> TOKEN: {
+		<STRING			:	"\"">		: DEFAULT			// rule5
+}
+
+/**********************/
+/*        SDT         */
+/**********************/
+
+/**********************/
+/*     begin parse    */
+/**********************/
+SQLNode parse():
+{
+	SQLNode parse;
+}
+{
+	(	parse=createClass()
+	|	parse=dropClass()
+	) ";" {
+		return parse;
+	}
+}
+/**********************/
+/*      end  parse    */
+/**********************/
+
+/**************************/
+/*   begin createClass    */
+/**************************/
+SQLNode createClass():
+{
+	Token className;
+	ArrayList<Attribute> attributeDefine;
+	SQLNode createClass = new SQLNode();
+}
+{
+		<CREATE> <CLASS> {
+			createClass.type = SQLNode.CREATE_CLASS;
+		} className=<IDENTIFIER> {
+			createClass.insertClassNameList(className.image);
+		} "(" attributeDefine=attributeDefine() {
+			createClass.insertAttrList(attributeDefine, className.image);
+		} ")" {
+			return createClass;
+		}
+}
+/**************************/
+/*    end  createClass    */
+/**************************/
+
+/**************************/
+/*   begin  dropClass     */
+/**************************/
+SQLNode dropClass():
+{
+	Token className;
+	SQLNode dropClass = new SQLNode();
+}
+{
+		<DROP> <CLASS> {
+			dropClass.type = SQLNode.DROP_CLASS;
+		} className=<IDENTIFIER> {
+			dropClass.insertClassNameList(className.image);
+
+			return dropClass;
+		}
+}
+/**************************/
+/*    end   dropClass     */
+/**************************/
+
+/******************************/
+/*   begin attributeDefine    */
+/******************************/
+ArrayList<Attribute> attributeDefine():
+{
+	Token attributeName;
+	Attribute attribute;
+	ArrayList<Attribute> attributeDefine = new ArrayList<Attribute>();
+}
+{
+		attributeName=<IDENTIFIER> (	<INT> {
+										attribute = new Attribute();
+										attribute.type = Attribute.INT;
+										attribute.name = attributeName.image;
+										attribute.expression = null;
+										attribute.className = null;
+
+										attributeDefine.add(attribute);
+									}
+								|	<CHAR> {
+										attribute = new Attribute();
+										attribute.type = Attribute.STRING;
+										attribute.name = attributeName.image;
+										attribute.expression = null;
+										attribute.className = null;
+
+										attributeDefine.add(attribute);
+									}
+								) ("," attributeName=<IDENTIFIER> (	<INT> {
+										attribute = new Attribute();
+										attribute.type = Attribute.INT;
+										attribute.name = attributeName.image;
+										attribute.expression = null;
+										attribute.className = null;
+
+										attributeDefine.add(attribute);
+									}
+								|	<CHAR> {
+										attribute = new Attribute();
+										attribute.type = Attribute.STRING;
+										attribute.name = attributeName.image;
+										attribute.expression = null;
+										attribute.className = null;
+
+										attributeDefine.add(attribute);
+									}
+								))* {
+			return attributeDefine;
+		}
+}
+/******************************/
+/*    end  attributeDefine    */
+/******************************/
+
+/**************************************/
+/*   begin virtualAttributeDefine     */
+/**************************************/
+ArrayList<Attribute> virtualAttributeDefine():
+{
+	Token virtualAttributeName;
+	calculationNode virtualAttributeExpression;
+	Attribute virtualAttribute;
+	ArrayList<Attribute> virtualAttributeDefine = new ArrayList<Attribute>();
+}
+{
+		virtualAttributeExpression=calculationExpr() {
+			virtualAttribute = new Attribute();
+			virtualAttribute.type = Attribute.INT;
+			virtualAttribute.name = null;
+			virtualAttribute.expression = virtualAttributeExpression.toString();
+			virtualAttribute.className = null;
+		} (	<AS> virtualAttributeName=<IDENTIFIER> {
+			virtualAttribute.name = virtualAttributeName.image;
+		})? {
+			virtualAttributeDefine.add(virtualAttribute);
+		} ("," virtualAttributeExpression=calculationExpr() {
+			virtualAttribute = new Attribute();
+			virtualAttribute.type = Attribute.INT;
+			virtualAttribute.name = null;
+			virtualAttribute.expression = virtualAttributeExpression.toString();
+			virtualAttribute.className = null;
+		} (	<AS> virtualAttributeName=<IDENTIFIER> {
+			virtualAttribute.name = virtualAttributeName.image;
+		})? {
+			virtualAttributeDefine.add(virtualAttribute);
+		})* {
+			return virtualAttributeDefine;
+		}
+}
+/**************************************/
+/*    end  virtualAttributeDefine     */
+/**************************************/
+
+/**********************/
+/*   begin whereExpr  */
+/**********************/
+whereNode whereExpr():
+{
+	whereNode whereExpr;
+}
+{
+		whereExpr=whereExpr9() {
+			return whereExpr;
+		}
+}
+
+whereNode whereExpr9():
+{
+	whereNode whereExpr9, left, right;
+}
+{
+		left=whereExpr8() (	<OR> right=whereExpr8() {
+							whereExpr9 = new whereNode();
+							whereExpr9.type = whereNode.AND;
+							whereExpr9.left = left;
+							whereExpr9.right = right;
+
+							left = whereExpr9;
+						}
+					)* {
+			whereExpr9 = left;
+
+			return whereExpr9;
+		}
+}
+
+whereNode whereExpr8():
+{
+	whereNode whereExpr8, left, right;
+}
+{
+		left=whereExpr7() (	<AND> right=whereExpr7() {
+							whereExpr8 = new whereNode();
+							whereExpr8.type = whereNode.AND;
+							whereExpr8.left = left;
+							whereExpr8.right = right;
+
+							left = whereExpr8;
+						}
+					)* {
+			whereExpr8 = left;
+
+			return whereExpr8;
+		}
+}
+
+whereNode whereExpr7():
+{
+	whereNode whereExpr7, left, right;
+}
+{
+		<NOT> left=whereExpr6() {
+			whereExpr7 = new whereNode();
+			whereExpr7.type = whereNode.NOT;
+			whereExpr7.left = left;
+
+			return whereExpr7;
+		}
+	|	whereExpr7=whereExpr6() {
+			return whereExpr7;
+		}
+}
+
+whereNode whereExpr6():
+{
+	whereNode whereExpr6, left, right;
+}
+{
+		left=whereExpr5() [(	">" right=whereExpr5() {
+							whereExpr6 = new whereNode();
+							whereExpr6.type = whereNode.MORE;
+							whereExpr6.left = left;
+							whereExpr6.right = right;
+
+							left = whereExpr6;
+						}
+					|	"<" right=whereExpr5() {
+							whereExpr6 = new whereNode();
+							whereExpr6.type = whereNode.LESS;
+							whereExpr6.left = left;
+							whereExpr6.right = right;
+
+							left = whereExpr6;
+						}
+					|	"=" right=whereExpr5() {
+							whereExpr6 = new whereNode();
+							whereExpr6.type = whereNode.EQUAL;
+							whereExpr6.left = left;
+							whereExpr6.right = right;
+
+							left = whereExpr6;
+						}
+					|	"<>" right=whereExpr5() {
+							whereExpr6 = new whereNode();
+							whereExpr6.type = whereNode.NOTEQUAL;
+							whereExpr6.left = left;
+							whereExpr6.right = right;
+
+							left = whereExpr6;
+						}
+					|	">=" right=whereExpr5() {
+							whereExpr6 = new whereNode();
+							whereExpr6.type = whereNode.MOREEQ;
+							whereExpr6.left = left;
+							whereExpr6.right = right;
+
+							left =  whereExpr6;
+						}
+					|	"<=" right=whereExpr5() {
+							whereExpr6 = new whereNode();
+							whereExpr6.type = whereNode.LESSEQ;
+							whereExpr6.left = left;
+							whereExpr6.right = right;
+
+							left = whereExpr6;
+						}
+					)] {
+			whereExpr6 = left;
+
+			return whereExpr6;
+		}
+}
+
+whereNode whereExpr5():
+{
+	whereNode whereExpr5, left, right;
+}
+{
+		left=whereExpr4() {
+			whereExpr5 = left;
+			return whereExpr5;
+		}
+}
+
+whereNode whereExpr4():
+{
+	whereNode whereExpr4, left, right;
+}
+{
+		left=whereExpr3() {
+			whereExpr4 = left;
+			return whereExpr4;
+		}
+}
+
+whereNode whereExpr3():
+{
+	whereNode whereExpr3, left, right;
+}
+{
+		left=whereExpr2() {
+			whereExpr3 = left;
+			return whereExpr3;
+		}
+}
+
+whereNode whereExpr2():
+{
+	whereNode whereExpr2, left, right;
+}
+{
+		left=whereExpr1() {
+			whereExpr2 = left;
+			return whereExpr2;
+		}
+}
+
+whereNode whereExpr1():
+{
+	whereNode whereExpr1, left, right;
+}
+{
+		left=whereTerm() {
+			whereExpr1 = left;
+			return whereExpr1;
+		}
+}
+
+whereNode whereTerm():
+{
+	whereNode whereTerm;
+}
+{
+		whereTerm=whereUnary() {
+			return whereTerm;
+		}
+}
+
+whereNode whereUnary():
+{
+	whereNode left, whereUnary;
+}
+{
+		left=wherePostfix() {
+			return left;
+		}
+}
+
+whereNode wherePostfix():
+{
+	whereNode wherePostfix;
+}
+{
+		wherePostfix=wherePrimary() {
+			return wherePostfix;
+		}
+}
+
+whereNode wherePrimary():
+{
+	Token leaf;
+	whereNode wherePrimary;
+}
+{
+		leaf=<INTEGER> {
+			wherePrimary = new whereNode();
+			wherePrimary.type = whereNode.INTEGER;
+			wherePrimary.valueInt = Integer.parseInt(leaf.image);
+
+			return wherePrimary;
+		}
+	|	leaf=<STRING> {
+			wherePrimary = new whereNode();
+			wherePrimary.type = whereNode.STRING;
+			wherePrimary.valueString = leaf.image.substring(1, leaf.image.length() - 1);
+
+			return wherePrimary;
+		}
+	|	leaf=<IDENTIFIER> {
+			wherePrimary = new whereNode();
+			wherePrimary.type = whereNode.IDENTIFIER;
+			wherePrimary.valueString = leaf.image;
+
+			return wherePrimary;
+		}
+	|	"(" wherePrimary=whereExpr() ")" {
+			return wherePrimary;
+		}
+}
+/**********************/
+/*    end  whereExpr  */
+/**********************/
+
+/******************************/
+/*   begin calculationExpr    */
+/******************************/
+calculationNode calculationExpr():
+{
+	calculationNode calculationExpr;
+}
+{
+		calculationExpr=calculationExpr2() {
+			return calculationExpr;
+		}
+}
+
+calculationNode calculationExpr2():
+{
+	calculationNode calculationExpr2, left, right;
+}
+{
+		left=calculationExpr1() (	"+" right=calculationExpr1() {
+							calculationExpr2 = new calculationNode();
+							calculationExpr2.operator = calculationNode.PLUS;
+							calculationExpr2.left = left;
+							calculationExpr2.right = right;
+
+							left = calculationExpr2;
+						}
+					|	"-" right=calculationExpr1() {
+							calculationExpr2 = new calculationNode();
+							calculationExpr2.operator = calculationNode.MINUS;
+							calculationExpr2.left = left;
+							calculationExpr2.right = right;
+
+							left = calculationExpr2;
+						}
+					)* {
+			calculationExpr2 = left;
+			return calculationExpr2;
+		}
+}
+
+calculationNode calculationExpr1():
+{
+	calculationNode calculationExpr1, left, right;
+}
+{
+		left=calculationTerm() (	"*" right=calculationTerm() {
+							calculationExpr1 = new calculationNode();
+							calculationExpr1.operator = calculationNode.MULTIPLY;
+							calculationExpr1.left = left;
+							calculationExpr1.right = right;
+
+							left = calculationExpr1;
+						}
+					|	"/" right=calculationTerm() {
+							calculationExpr1 = new calculationNode();
+							calculationExpr1.operator = calculationNode.DIVIDE;
+							calculationExpr1.left = left;
+							calculationExpr1.right = right;
+
+							left = calculationExpr1;
+						}
+					)* {
+			calculationExpr1 = left;
+			return calculationExpr1;
+		}
+}
+
+
+calculationNode calculationTerm():
+{
+	calculationNode calculationTerm;
+}
+{
+		calculationTerm=calculationUnary() {
+			return calculationTerm;
+		}
+}
+
+calculationNode calculationUnary():
+{
+	calculationNode left, calculationUnary;
+}
+{
+		left=calculationPostfix() {
+			return left;
+		}
+	|	"-" left=calculationTerm() {
+			calculationUnary = new calculationNode();
+			calculationUnary.operator = calculationNode.MINUS;
+			calculationUnary.left = left;
+
+			return calculationUnary;
+		}
+}
+
+calculationNode calculationPostfix():
+{
+	calculationNode calculationPostfix;
+}
+{
+		calculationPostfix=calculationPrimary() {
+			return calculationPostfix;
+		}
+}
+
+calculationNode calculationPrimary():
+{
+	Token leaf;
+	calculationNode calculationPrimary;
+}
+{
+		leaf=<INTEGER> {
+			calculationPrimary = new calculationNode();
+			calculationPrimary.operator = calculationNode.INTEGER;
+			calculationPrimary.valueInt = Integer.parseInt(leaf.image);
+
+			return calculationPrimary;
+		}
+	|	leaf=<IDENTIFIER> {
+			calculationPrimary = new calculationNode();
+			calculationPrimary.operator = calculationNode.IDENTIFIER;
+			calculationPrimary.valueString = leaf.image;
+
+			return calculationPrimary;
+		}
+	|	"(" calculationPrimary=calculationExpr() ")" {
+			return calculationPrimary;
+		}
+}
+/******************************/
+/*    end  calculationExpr    */
+/******************************/
+
