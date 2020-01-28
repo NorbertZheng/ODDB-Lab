@@ -84,9 +84,14 @@ SQLNode parse():
 	SQLNode parse;
 }
 {
-	(	parse=createClass()
-	|	parse=dropClass()
-	|	parse=selectTuple()
+	(	parse=dropClass()
+	|	parse=insertTuple()
+	|	parse=deleteTuple()
+	|	parse=updateTuple()
+	|	LOOKAHEAD(2) parse=createClass()
+	|	parse=createSelectDeputyClass()
+	|	LOOKAHEAD(3) parse=selectTuple()
+	|	parse=crossSelectTuple()
 	) ";" {
 		return parse;
 	}
@@ -119,6 +124,35 @@ SQLNode createClass():
 /*    end  createClass    */
 /**************************/
 
+/**************************************/
+/*   begin createSelectDeputyClass    */
+/**************************************/
+SQLNode createSelectDeputyClass():
+{
+	Token className;
+	SQLNode selectTuple;
+	ArrayList<Attribute> attributeDefine;
+	SQLNode createSelectDeputyClass = new SQLNode();
+}
+{
+		<CREATE> <SELECTDEPUTY> {
+			createSelectDeputyClass.type = SQLNode.CREATE_SELECT_DEPUTY_CLASS;
+		} className=<IDENTIFIER> {
+			createSelectDeputyClass.insertClassNameList(className.image);
+		} ("(" attributeDefine=attributeDefine() {
+			createSelectDeputyClass.insertAttrList(attributeDefine, className.image);
+		} ")")? selectTuple=selectTuple() {
+			createSelectDeputyClass.insertClassNameList(selectTuple.classNameList);
+			createSelectDeputyClass.insertAttrList(selectTuple.attrList, className.image);
+			createSelectDeputyClass.where = selectTuple.where;
+
+			return createSelectDeputyClass;
+		}
+}
+/**************************************/
+/*    end  createSelectDeputyClass    */
+/**************************************/
+
 /**************************/
 /*   begin  dropClass     */
 /**************************/
@@ -138,6 +172,137 @@ SQLNode dropClass():
 }
 /**************************/
 /*    end   dropClass     */
+/**************************/
+
+/**************************/
+/*   begin  insertTuple   */
+/**************************/
+SQLNode insertTuple():
+{
+	Token className;
+	Token attributeName;
+	Token attrValue;
+	Attribute attribute;
+	SQLNode insertTuple = new SQLNode();
+}
+{
+		<INSERT> <INTO> {
+			insertTuple.type = SQLNode.INSERT_TUPLE;
+		} className=<IDENTIFIER> {
+			insertTuple.insertClassNameList(className.image);
+		} "(" attributeName=<IDENTIFIER> {
+			attribute = new Attribute();
+			attribute.type = Attribute.INT;
+			attribute.name = attributeName.image;
+			attribute.expression = null;
+			attribute.className = className.image;
+
+			insertTuple.insertAttrList(attribute);
+		} ("," attributeName=<IDENTIFIER> {
+			attribute = new Attribute();
+			attribute.type = Attribute.INT;
+			attribute.name = attributeName.image;
+			attribute.expression = null;
+			attribute.className = className.image;
+
+			insertTuple.insertAttrList(attribute);
+		})* ")" <VALUES> "(" (	attrValue=<INTEGER> {
+									insertTuple.insertAttrValueList(attrValue.image);
+								}
+							|	attrValue=<STRING> {
+									insertTuple.insertAttrValueList(attrValue.image.substring(1, attrValue.image.length() - 1));
+								}
+		) ("," (	attrValue=<INTEGER> {
+							insertTuple.insertAttrValueList(attrValue.image);
+						}
+					|	attrValue=<STRING> {
+							insertTuple.insertAttrValueList(attrValue.image.substring(1, attrValue.image.length() - 1));
+						}
+		))* ")" {
+			return insertTuple;
+		}
+}
+/**************************/
+/*    end   insertTuple   */
+/**************************/
+
+/**************************/
+/*   begin  deleteTuple   */
+/**************************/
+SQLNode deleteTuple():
+{
+	Token className;
+	whereNode where;
+	SQLNode deleteTuple = new SQLNode();
+}
+{
+		<DELETE> {
+			deleteTuple.type = SQLNode.DELETE_TUPLE;
+		} <FROM> className=<IDENTIFIER> {
+			deleteTuple.insertClassNameList(className.image);
+		} <WHERE> where=whereExpr() {
+			deleteTuple.where = where;
+
+			return deleteTuple;
+		}
+}
+/**************************/
+/*    end   deleteTuple   */
+/**************************/
+
+/**************************/
+/*   begin  updateTuple   */
+/**************************/
+SQLNode updateTuple():
+{
+	Token className;
+	Token attributeName;
+	Token attrValue;
+	Attribute attribute;
+	whereNode where;
+	SQLNode updateTuple = new SQLNode();
+}
+{
+		<UPDATE> {
+			updateTuple.type = SQLNode.UPDATE_TUPLE;
+		} className=<IDENTIFIER> {
+			updateTuple.insertClassNameList(className.image);
+		} <SET> attributeName=<IDENTIFIER> {
+			attribute = new Attribute();
+			attribute.type = Attribute.INT;
+			attribute.name = attributeName.image;
+			attribute.expression = null;
+			attribute.className = className.image;
+
+			updateTuple.insertAttrList(attribute);
+		} "=" (	attrValue=<INTEGER> {
+					updateTuple.insertAttrValueList(attrValue.image);
+				}
+			|	attrValue=<STRING> {
+					updateTuple.insertAttrValueList(attrValue.image.substring(1, attrValue.image.length() - 1));
+				}
+		) ("," attributeName=<IDENTIFIER> {
+			attribute = new Attribute();
+			attribute.type = Attribute.INT;
+			attribute.name = attributeName.image;
+			attribute.expression = null;
+			attribute.className = className.image;
+
+			updateTuple.insertAttrList(attribute);
+		} "=" (	attrValue=<INTEGER> {
+					updateTuple.insertAttrValueList(attrValue.image);
+				}
+			|	attrValue=<STRING> {
+					updateTuple.insertAttrValueList(attrValue.image.substring(1, attrValue.image.length() - 1));
+				}
+		))* <WHERE> where=whereExpr() {
+			updateTuple.where = where;
+
+			return updateTuple;
+		}
+}
+/**************************/
+/*    end   updateTuple   */
 /**************************/
 
 /**************************/
@@ -165,6 +330,56 @@ SQLNode selectTuple():
 /**************************/
 /*    end   selectTuple   */
 /**************************/
+
+/******************************/
+/*   begin  crossSelectTuple  */
+/******************************/
+SQLNode crossSelectTuple():
+{
+	Token className;
+	Token attributeName;
+	Attribute attribute;
+	whereNode where;
+	SQLNode crossSelectTuple = new SQLNode();
+}
+{
+		<SELECT> {
+			crossSelectTuple.type = SQLNode.CROSS_SELECT_TUPLE;
+		} className=<IDENTIFIER> {
+			crossSelectTuple.insertClassNameList(className.image);
+		} ("->" className=<IDENTIFIER> {
+			crossSelectTuple.insertClassNameList(className.image);
+		})* "." attributeName=<IDENTIFIER> {
+			attribute = new Attribute();
+			attribute.type = Attribute.INT;
+			attribute.name = attributeName.image;
+			attribute.expression = null;
+			attribute.className = className.image;
+
+			crossSelectTuple.insertAttrList(attribute);
+		} ("," className=<IDENTIFIER> {
+			crossSelectTuple.insertClassNameList(className.image);
+		} ("->" className=<IDENTIFIER> {
+			crossSelectTuple.insertClassNameList(className.image);
+		})* "." attributeName=<IDENTIFIER> {
+			attribute = new Attribute();
+			attribute.type = Attribute.INT;
+			attribute.name = attributeName.image;
+			attribute.expression = null;
+			attribute.className = className.image;
+
+			crossSelectTuple.insertAttrList(attribute);
+		})* <FROM> className=<IDENTIFIER> {
+			crossSelectTuple.insertClassNameList(className.image);
+		} (<WHERE> where=whereExpr() {
+			crossSelectTuple.where = where;
+		})? {
+			return crossSelectTuple;
+		}
+}
+/******************************/
+/*    end   crossSelectTuple  */
+/******************************/
 
 /******************************/
 /*   begin attributeDefine    */

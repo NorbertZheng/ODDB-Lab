@@ -24,6 +24,18 @@ public class SQLNode {
 		this.classNameList.add(className);
 	}
 
+	public void insertClassNameList(ArrayList<String> classNameList) {
+		if (this.classNameList == null) {
+			this.classNameList = new ArrayList<String>();
+		}
+		if (classNameList == null) {
+			return;
+		}
+		for (int i = 0; i < classNameList.size(); i++) {
+			this.classNameList.add(classNameList.get(i));
+		}
+	}
+
 	public void insertAttrList(Attribute attribute) {
 		if (this.attrList == null) {
 			this.attrList = new ArrayList<Attribute>();
