@@ -86,6 +86,7 @@ SQLNode parse():
 {
 	(	parse=createClass()
 	|	parse=dropClass()
+	|	parse=selectTuple()
 	) ";" {
 		return parse;
 	}
@@ -137,6 +138,32 @@ SQLNode dropClass():
 }
 /**************************/
 /*    end   dropClass     */
+/**************************/
+
+/**************************/
+/*   begin  selectTuple   */
+/**************************/
+SQLNode selectTuple():
+{
+	Token className;
+	ArrayList<Attribute> virtualAttributeList;
+	whereNode where;
+	SQLNode selectTuple = new SQLNode();
+}
+{
+		<SELECT> {
+			selectTuple.type = SQLNode.SELECT_TUPLE;
+		} virtualAttributeList=virtualAttributeDefine() <FROM> className=<IDENTIFIER> {
+			selectTuple.insertAttrList(virtualAttributeList, className.image);
+			selectTuple.insertClassNameList(className.image);
+		} (<WHERE> where=whereExpr() {
+			selectTuple.where = where;
+		})? {
+			return selectTuple;
+		}
+}
+/**************************/
+/*    end   selectTuple   */
 /**************************/
 
 /******************************/
