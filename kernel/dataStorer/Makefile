@@ -1,6 +1,6 @@
-src = SQLExecutor
-dep = ../SQLParser/bin/SQLParser.class
-srcClassPath = ./:./src/:../SQLParser/src/:../SQLParser/bin/
+src = dataStorer
+dep = ../../tools/virtualDisk/bin/virtualDisk.class
+srcClassPath = ./:./src/:../SQLParser/src/:../SQLParser/bin/:../../tools/virtualDisk/bin/
 destClassPath = ./bin/
 
 all: $(destClassPath)$(src).class
@@ -8,8 +8,8 @@ all: $(destClassPath)$(src).class
 $(destClassPath)$(src).class: $(src).java $(destClassPath) $(dep)
 	javac -cp $(srcClassPath) $(src).java -d $(destClassPath)
 
-$(dep): ../SQLParser/Makefile
-	cd ../SQLParser && make all
+$(dep): ../../tools/virtualDisk/Makefile
+	cd ../../tools/virtualDisk && make all
 
 $(destClassPath):
 	mkdir $(destClassPath)
