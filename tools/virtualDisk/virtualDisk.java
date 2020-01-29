@@ -1304,9 +1304,12 @@ public class virtualDisk {
 			return false;
 		} else {
 			n_nextBlock = this.getNextBlock(n_block);
+			// System.out.printf("(%d, %d)\n", n_block, n_nextBlock);
 
-			if (!this.deleteBlock(n_nextBlock)) {
-				return false;
+			if (n_nextBlock != n_block) {
+				if (!this.deleteBlock(n_nextBlock)) {
+					return false;
+				}
 			}
 			return this.deleteOneBlock(n_block);
 		}
@@ -2807,13 +2810,6 @@ public class virtualDisk {
 		}
 		result.add(0, virtualDisk.encode(tupleBiPointerList));
 
-		// reset fakeBlockNum, fakeBlockOffset
-		this.fakeBlockOffset += 1;
-		if (this.fakeBlockOffset == virtualDisk.PAGESIZE) {
-			this.fakeBlockOffset = 0;
-			this.fakeBlockNum += 1;
-		}
-
 		return result;
 	}
 
@@ -2825,9 +2821,7 @@ public class virtualDisk {
 	 *  offset(int)			: total offset
 	 */
 	public int getOffset() {
-		// System.out.printf("this.fakeBlockNum: %d, this.fakeBlockOffset: %d\n", this.fakeBlockNum, this.fakeBlockOffset);
-
-		return this.fakeBlockNum * virtualDisk.PAGESIZE + this.fakeBlockOffset - 1;
+		return this.fakeBlockNum * virtualDisk.PAGESIZE + this.fakeBlockOffset;
 	}
 
 	/*
@@ -3057,16 +3051,11 @@ public class virtualDisk {
 		// update biPointerTable
 		if (!this.updateBiPointerTable(classStruct, tupleBiPointer)) {
 			System.out.println("ERROR: (in virtualDisk.insert) update biPointerTable fail!");
+			if (!this.freeOneTuple(n_block, index)) {
+				System.out.printf("ERROR: (in virtualDisk.insert) free one tuple(%d, %d) fail!\n", n_block, index);
+			}
 			return false;
 		}
-
-		// reset fakeBlockNum, fakeBlockOffset
-		this.fakeBlockOffset += 1;
-		if (this.fakeBlockOffset == virtualDisk.PAGESIZE) {
-			this.fakeBlockOffset = 0;
-			this.fakeBlockNum += 1;
-		}
-		// System.out.println("INFO: insert successfully!");
 
 		return true;
 	}
@@ -3083,19 +3072,12 @@ public class virtualDisk {
 		String tupleBiPointer;
 		classStruct classStruct;
 		ArrayList<Integer> lengthList, typeList;
+		ArrayList<String> oldTuple;
 
 		classStruct = this.getClassStruct(this.currClassName);
 		if (classStruct == null) {
 			System.err.println("ERROR: (in virtualDisk.update) classStruct == null!");
 			return false;
-		}
-
-		// temp change, after Next()
-		if (this.fakeBlockOffset == 0) {
-			this.fakeBlockOffset = virtualDisk.PAGESIZE - 1;
-			this.fakeBlockNum -= 1;
-		} else {
-			this.fakeBlockOffset -= 1;
 		}
 
 		// remove first element from tuple
@@ -3121,22 +3103,25 @@ public class virtualDisk {
 			return false;
 		}
 
+		// before update, save oldTuple
+		oldTuple = this.readOneTuple(lengthList, typeList, realBlockNum, realBlockOffset);
+		if (oldTuple == null) {
+			System.err.println("ERROR: (in virtualDisk.update) (oldTuple == null)!");
+			return false;
+		}
+		// update tuple
 		if (!this.writeOneTuple(lengthList, typeList, realBlockNum, realBlockOffset, tuple)) {
-			System.err.println("ERROR: (in virtualDisk.update) writeOneTuple fail!");
+			System.err.println("ERROR: (in virtualDisk.update) writeOneTuple(tuple) fail!");
 			return false;
 		}
 
 		// update biPointerTable
 		if (!this.updateBiPointerTable(classStruct, tupleBiPointer)) {
 			System.out.println("ERROR: (in virtualDisk.update) update biPointerTable fail!");
+			if (!this.writeOneTuple(lengthList, typeList, realBlockNum, realBlockOffset, oldTuple)) {
+				System.err.println("ERROR: (in virtualDisk.update) writeOneTuple(oldTuple) fail!");
+			}
 			return false;
-		}
-	
-		// reset fakeBlockNum, fakeBlockOffset
-		this.fakeBlockOffset += 1;
-		if (this.fakeBlockOffset == virtualDisk.PAGESIZE) {
-			this.fakeBlockOffset = 0;
-			this.fakeBlockNum += 1;
 		}
 
 		return true;
@@ -3220,7 +3205,7 @@ public class virtualDisk {
 		}
 
 		// current - 1
-		index = (this.fakeBlockNum * virtualDisk.PAGESIZE) + this.fakeBlockOffset - 1;
+		index = (this.fakeBlockNum * virtualDisk.PAGESIZE) + this.fakeBlockOffset;
 
 		// check whether index is valid
 		if (index >= (this.blockSize * virtualDisk.BITS_OF_BYTE)) {
