@@ -2684,6 +2684,14 @@ public class virtualDisk {
 		return this._flushToDisk();
 	}
 
+	/*
+	 * get tupleBiPointerList
+	 * @Args:
+	 *  classStruct(classStruct)				: classStruct
+	 *  objectId(int)							: objectId
+	 * @Ret:
+	 *  tupleBiPointerList(ArrayList<String>)	: tupleBiPointerList
+	 */
 	private ArrayList<String> getTupleBiPointerList(classStruct classStruct, int objectId) {
 		int i, j, classId, deputyClassId;
 		biPointerTable tempBiPointerTable;
@@ -2822,6 +2830,13 @@ public class virtualDisk {
 		return this.fakeBlockNum * virtualDisk.PAGESIZE + this.fakeBlockOffset - 1;
 	}
 
+	/*
+	 * remove deleted children's biPointerTable
+	 * @Args:
+	 *  classStruct(classStruct)		: classStruct
+	 * @Ret:
+	 *  flag(boolean)					: whether remove biPointerTable successfully
+	 */
 	private boolean removeDeletedChildrenBiPointerTable(classStruct classStruct) {
 		int i, j, classId, childrenClassId;
 		biPointerTable tempBiPointerTable;
@@ -2872,6 +2887,14 @@ public class virtualDisk {
 		return true;
 	}
 
+	/*
+	 * update biPointerTable
+	 * @Args:
+	 *  classStruct(classStruct)	: classStruct
+	 *  tupleBiPointer(String)		: tuple biPointer(encoded)
+	 * @Ret:
+	 *  flag(boolean)				: whether update biPointerTable successfully
+	 */
 	private boolean updateBiPointerTable(classStruct classStruct, String tupleBiPointer) {
 		int i, j, classId, childrenClassId, objectId, deputyObjectId;
 		ArrayList<Integer> childrenClassIdList;
@@ -3119,6 +3142,14 @@ public class virtualDisk {
 		return true;
 	}
 
+	/*
+	 * delete biPointerTable
+	 * @Args:
+	 *  classStruct(classStruct)	: classStruct
+	 *  objectId(int)				: objectId
+	 * @Ret:
+	 *  flag(boolean)				: whether delete biPointerTable successfully
+	 */
 	private boolean deleteBiPointerTable(classStruct classStruct, int objectId) {
 		int classId, childrenClassId;
 		biPointerTable tempBiPointerTable;
