@@ -330,7 +330,7 @@ public class virtualDisk {
 	 */
 	private boolean getClassTable() {
 		ArrayList<String> temp;
-		ArrayList<String> data = this.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.CLASS_TABLE));
+		ArrayList<String> data = virtualDisk.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.CLASS_TABLE));
 
 		if ((data.size() % classTable.N_ATTR) != 0) {
 			System.err.printf("ERROR: data.size()(%d) classTable.N_ATTR(%d) from getClassTable!\n", data.size(), classTable.N_ATTR);
@@ -371,7 +371,7 @@ public class virtualDisk {
 			}
 		}
 
-		return fileToolset.writeFile(this.systemTableLocation + File.separator + virtualDisk.CLASS_TABLE, this.encode(data));
+		return fileToolset.writeFile(this.systemTableLocation + File.separator + virtualDisk.CLASS_TABLE, virtualDisk.encode(data));
 	}
 
 	/*
@@ -383,7 +383,7 @@ public class virtualDisk {
 	 */
 	private boolean getAttributeTable() {
 		ArrayList<String> temp;
-		ArrayList<String> data = this.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.ATTRIBUTE_TABLE));
+		ArrayList<String> data = virtualDisk.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.ATTRIBUTE_TABLE));
 
 		if ((data.size() % attributeTable.N_ATTR) != 0) {
 			return false;
@@ -423,7 +423,7 @@ public class virtualDisk {
 			}
 		}
 
-		return fileToolset.writeFile(this.systemTableLocation + File.separator + virtualDisk.ATTRIBUTE_TABLE, this.encode(data));
+		return fileToolset.writeFile(this.systemTableLocation + File.separator + virtualDisk.ATTRIBUTE_TABLE, virtualDisk.encode(data));
 	}
 
 	/*
@@ -435,7 +435,7 @@ public class virtualDisk {
 	 */
 	private boolean getDeputyTable() {
 		ArrayList<String> temp;
-		ArrayList<String> data = this.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.DEPUTY_TABLE));
+		ArrayList<String> data = virtualDisk.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.DEPUTY_TABLE));
 
 		if ((data.size() % deputyTable.N_ATTR) != 0) {
 			return false;
@@ -475,7 +475,7 @@ public class virtualDisk {
 			}
 		}
 
-		return fileToolset.writeFile(this.systemTableLocation + File.separator + virtualDisk.DEPUTY_TABLE, this.encode(data));
+		return fileToolset.writeFile(this.systemTableLocation + File.separator + virtualDisk.DEPUTY_TABLE, virtualDisk.encode(data));
 	}
 
 	/*
@@ -487,7 +487,7 @@ public class virtualDisk {
 	 */
 	private boolean getDeputyRuleTable() {
 		ArrayList<String> temp;
-		ArrayList<String> data = this.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.DEPUTYRULE_TABLE));
+		ArrayList<String> data = virtualDisk.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.DEPUTYRULE_TABLE));
 
 		if ((data.size() % deputyRuleTable.N_ATTR) != 0) {
 			return false;
@@ -527,7 +527,7 @@ public class virtualDisk {
 			}
 		}
 
-		return fileToolset.writeFile(this.systemTableLocation + File.separator + virtualDisk.DEPUTYRULE_TABLE, this.encode(data));
+		return fileToolset.writeFile(this.systemTableLocation + File.separator + virtualDisk.DEPUTYRULE_TABLE, virtualDisk.encode(data));
 	}
 
 	/*
@@ -539,7 +539,7 @@ public class virtualDisk {
 	 */
 	private boolean getObjectTable() {
 		ArrayList<String> temp;
-		ArrayList<String> data = this.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.OBJECT_TABLE));
+		ArrayList<String> data = virtualDisk.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.OBJECT_TABLE));
 
 		if ((data.size() % objectTable.N_ATTR) != 0) {
 			return false;
@@ -579,7 +579,7 @@ public class virtualDisk {
 			}
 		}
 
-		return fileToolset.writeFile(this.systemTableLocation + File.separator + virtualDisk.OBJECT_TABLE, this.encode(data));
+		return fileToolset.writeFile(this.systemTableLocation + File.separator + virtualDisk.OBJECT_TABLE, virtualDisk.encode(data));
 	}
 
 	/*
@@ -591,7 +591,7 @@ public class virtualDisk {
 	 */
 	private boolean getSwitchingTable() {
 		ArrayList<String> temp;
-		ArrayList<String> data = this.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.SWITCHING_TABLE));
+		ArrayList<String> data = virtualDisk.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.SWITCHING_TABLE));
 
 		if ((data.size() % switchingTable.N_ATTR) != 0) {
 			return false;
@@ -631,7 +631,7 @@ public class virtualDisk {
 			}
 		}
 
-		return fileToolset.writeFile(this.systemTableLocation + File.separator + virtualDisk.SWITCHING_TABLE, this.encode(data));
+		return fileToolset.writeFile(this.systemTableLocation + File.separator + virtualDisk.SWITCHING_TABLE, virtualDisk.encode(data));
 	}
 
 	/*
@@ -643,7 +643,7 @@ public class virtualDisk {
 	 */
 	private boolean getBiPointerTable() {
 		ArrayList<String> temp;
-		ArrayList<String> data = this.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.BIPOINTER_TABLE));
+		ArrayList<String> data = virtualDisk.decode(fileToolset.readFile(this.systemTableLocation + File.separator + virtualDisk.BIPOINTER_TABLE));
 
 		if ((data.size() % biPointerTable.N_ATTR) != 0) {
 			return false;
@@ -683,7 +683,7 @@ public class virtualDisk {
 			}
 		}
 
-		return fileToolset.writeFile(this.systemTableLocation + File.separator + virtualDisk.BIPOINTER_TABLE, this.encode(data));
+		return fileToolset.writeFile(this.systemTableLocation + File.separator + virtualDisk.BIPOINTER_TABLE, virtualDisk.encode(data));
 	}
 
 	/*
@@ -1157,7 +1157,7 @@ public class virtualDisk {
 	 * @Ret:
 	 *  result(String)			: encode string
 	 */
-	public String encode(ArrayList<String> data) {
+	public static String encode(ArrayList<String> data) {
 		int length, tempLength;
 		String temp, result = "";
 
@@ -1197,7 +1197,7 @@ public class virtualDisk {
 	 * @Ret:
 	 *  result(ArrayList<String>)	: decode string list
 	 */
-	public ArrayList<String> decode(String code) {
+	public static ArrayList<String> decode(String code) {
 		String temp;
 		ArrayList<String> result;
 
@@ -2684,6 +2684,53 @@ public class virtualDisk {
 		return this._flushToDisk();
 	}
 
+	private ArrayList<String> getTupleBiPointerList(classStruct classStruct, int objectId) {
+		int i, j, classId, deputyClassId;
+		biPointerTable tempBiPointerTable;
+		ArrayList<String> tupleBiPointerList = new ArrayList<String>();
+
+		if ((classStruct == null) || (objectId == virtualDisk.MAX_INTEGER)) {
+			System.out.printf("ERROR: (in virtualDisk.getTupleBiPointerList) ((classStruct == null) || (objectId(%d) == virtualDisk.MAX_INTEGER))!\n", objectId);
+			return null;
+		}
+
+		// get classId
+		classId = this.getClassId(classStruct.name);
+		if (classId == virtualDisk.MAX_INTEGER) {
+			System.out.println("ERROR: (in virtualDisk.getTupleBiPointerList) (classId == virtualDisk.MAX_INTEGER)!");
+			return null;
+		}
+
+		// remove all deleted children biPointer
+		if (!this.removeDeletedChildrenBiPointerTable(classStruct)) {
+			System.out.println("ERROR: (in virtualDisk.getTupleBiPointerList) remove all deleted children biPointer fail!");
+			return null;
+		}
+
+		// get current children biPointer
+		for (i = 0; i < classStruct.children.size(); i++) {
+			deputyClassId = this.getClassId(classStruct.children.get(i));
+			if (deputyClassId == virtualDisk.MAX_INTEGER) {
+				System.out.println("ERROR: (in virtualDisk.getTupleBiPointerList) (deputyClassId == virtualDisk.MAX_INTEGER)!");
+				return null;
+			}
+			// get corresponding biPointer
+			for (j = 0; j < this.systemBiPointerTable.size(); j++) {
+				tempBiPointerTable = this.systemBiPointerTable.get(j);
+				if ((tempBiPointerTable.classId == classId) && (tempBiPointerTable.objectId == objectId) && (tempBiPointerTable.deputyClassId == deputyClassId)) {
+					tupleBiPointerList.add(Integer.toString(tempBiPointerTable.deputyObjectId));
+					break;
+				}
+			}
+			if (j == this.systemBiPointerTable.size()) {
+				// not find, add ""
+				tupleBiPointerList.add("");
+			}
+		}
+
+		return tupleBiPointerList;
+	}
+
 	/*
 	 * get next tuple
 	 * @Args:
@@ -2695,7 +2742,7 @@ public class virtualDisk {
 		int realBlockNum, realBlockOffset, index, lastIndex, n_block, classId;
 		classStruct classStruct;
 		ArrayList<Integer> lengthList, typeList;
-		ArrayList<String> result;
+		ArrayList<String> result, tupleBiPointerList;
 
 		classId = this.getClassId(this.currClassName);
 		classStruct = this.getClassStruct(this.currClassName);
@@ -2744,6 +2791,14 @@ public class virtualDisk {
 		}
 		result = this.readOneTuple(lengthList, typeList, realBlockNum, realBlockOffset);
 
+		// add biPointer to head
+		tupleBiPointerList = this.getTupleBiPointerList(classStruct, (this.fakeBlockNum * virtualDisk.PAGESIZE) + this.fakeBlockOffset);
+		if (tupleBiPointerList == null) {
+			System.out.println("ERROR: (in virtualDisk.Next) tupleBiPointerList == null!");
+			return null;
+		}
+		result.add(0, virtualDisk.encode(tupleBiPointerList));
+
 		// reset fakeBlockNum, fakeBlockOffset
 		this.fakeBlockOffset += 1;
 		if (this.fakeBlockOffset == virtualDisk.PAGESIZE) {
@@ -2767,6 +2822,132 @@ public class virtualDisk {
 		return this.fakeBlockNum * virtualDisk.PAGESIZE + this.fakeBlockOffset - 1;
 	}
 
+	private boolean removeDeletedChildrenBiPointerTable(classStruct classStruct) {
+		int i, j, classId, childrenClassId;
+		biPointerTable tempBiPointerTable;
+		ArrayList<Integer> childrenClassIdList;
+
+		if (classStruct == null) {
+			System.out.println("ERROR: (in virtualDisk.removeDeletedChildrenBiPointerTable) classStruct == null!");
+			return false;
+		}
+		
+		// get classId
+		classId = this.getClassId(classStruct.name);
+		if (classId == virtualDisk.MAX_INTEGER) {
+			System.out.println("ERROR: (in virtualDisk.removeDeletedChildrenBiPointerTable) classId == virtualDisk.MAX_INTEGER!");
+			return false;
+		}
+
+		// get all childrenClassIdList
+		childrenClassIdList = new ArrayList<Integer>();
+		if (classStruct.children != null) {
+			for (i = 0; i < classStruct.children.size(); i++) {
+				childrenClassId = this.getClassId(classStruct.children.get(i));
+				if (childrenClassId == virtualDisk.MAX_INTEGER) {
+					System.out.println("ERROR: (in virtualDisk.removeDeletedChildrenBiPointerTable) childrenClassId == virtualDisk.MAX_INTEGER!");
+					return false;
+				} else {
+					childrenClassIdList.add(childrenClassId);
+				}
+			}
+		}
+		// remove all deleted children biPointer
+		for (i = 0; i < this.systemBiPointerTable.size(); i++) {
+			tempBiPointerTable = this.systemBiPointerTable.get(i);
+			if (tempBiPointerTable.classId == classId) {
+				// check deputyClassId
+				for (j = 0; j < childrenClassIdList.size(); j++) {
+					if (tempBiPointerTable.deputyClassId == childrenClassIdList.get(i).intValue()) {
+						break;
+					}
+				}
+				if (j == childrenClassIdList.size()) {
+					// not match, need delete
+					this.systemBiPointerTable.remove(i);
+				}
+			}
+		}
+
+		return true;
+	}
+
+	private boolean updateBiPointerTable(classStruct classStruct, String tupleBiPointer) {
+		int i, j, classId, childrenClassId, objectId, deputyObjectId;
+		ArrayList<Integer> childrenClassIdList;
+		ArrayList<String> tupleBiPointerList;
+		biPointerTable tempBiPointerTable;
+
+		if ((classStruct == null) || (tupleBiPointer == null)) {
+			System.out.println("ERROR: (in virtualDisk.updateBiPointerTable) ((classStruct == null) || (tupleBiPointer == null))!");
+			return false;
+		}
+		// get classId && decode tupleBiPointer
+		classId = this.getClassId(classStruct.name);
+		if (classId == virtualDisk.MAX_INTEGER) {
+			System.out.println("ERROR: (in virtualDisk.updateBiPointerTable) classId == virtualDisk.MAX_INTEGER!");
+			return false;
+		}
+		tupleBiPointerList = virtualDisk.decode(tupleBiPointer);
+		if (tupleBiPointerList.size() != classStruct.children.size()) {
+			System.out.println("ERROR: (in virtualDisk.updateBiPointerTable) (tupleBiPointerList.size() != classStruct.children.size())!");
+			return false;
+		}
+		// get all childrenClassIdList
+		childrenClassIdList = new ArrayList<Integer>();
+		if (classStruct.children != null) {
+			for (i = 0; i < classStruct.children.size(); i++) {
+				childrenClassId = this.getClassId(classStruct.children.get(i));
+				if (childrenClassId == virtualDisk.MAX_INTEGER) {
+					System.out.println("ERROR: (in virtualDisk.updateBiPointerTable) childrenClassId == virtualDisk.MAX_INTEGER!");
+					return false;
+				} else {
+					childrenClassIdList.add(childrenClassId);
+				}
+			}
+		}
+		// remove all deleted children biPointer
+		if (!this.removeDeletedChildrenBiPointerTable(classStruct)) {
+			System.out.println("ERROR: (in virtualDisk.updateBiPointerTable) remove all deleted children biPointer fail!");
+			return false;
+		}
+		// update rest children biPointer && insert new children biPointer
+		objectId = (this.fakeBlockNum * virtualDisk.PAGESIZE) + this.fakeBlockOffset;
+		for (i = 0; i < tupleBiPointerList.size(); i++) {
+			if (!virtualDisk.canParseInt(tupleBiPointerList.get(i))) {
+				System.out.printf("ERROR: (in virtualDisk.updateBiPointerTable) cannot parse String(%s) to int!\n", tupleBiPointerList.get(i));
+				return false;
+			}
+			deputyObjectId = Integer.parseInt(tupleBiPointerList.get(i));
+			// get children classId
+			childrenClassId = this.getClassId(classStruct.children.get(i));
+			for (j = 0; j < this.systemBiPointerTable.size(); j++) {
+				tempBiPointerTable = this.systemBiPointerTable.get(j);
+				if ((tempBiPointerTable.classId == classId) && (tempBiPointerTable.objectId == objectId) && (tempBiPointerTable.deputyClassId == childrenClassId)) {
+					// only need to update deputyObjectId
+					tempBiPointerTable.deputyObjectId = deputyObjectId;
+					break;
+				}
+			}
+			// no match, create a new biPointerTable
+			tempBiPointerTable = new biPointerTable();
+			tempBiPointerTable.classId = classId;
+			tempBiPointerTable.objectId = objectId;
+			tempBiPointerTable.deputyClassId = childrenClassId;
+			tempBiPointerTable.deputyObjectId = deputyObjectId;
+
+			this.systemBiPointerTable.add(tempBiPointerTable);
+		}
+
+		if (!this.flushBiPointerTable()) {
+			System.out.println("ERROR: (in virtualDisk.updateBiPointerTable) flush biPointerTable fail!");
+			return false;
+		}
+
+		return true;
+	}
+				
+
 	/*
 	 * insert tuple to class
 	 * @Args:
@@ -2778,17 +2959,24 @@ public class virtualDisk {
 	public boolean insert(String className, ArrayList<String> tuple) {
 		int realBlockNum, realBlockOffset, index, n_block, classId;
 		classStruct classStruct;
+		String tupleBiPointer;
 		ArrayList<Integer> lengthList, typeList;
 
 		// avoid className not match this.currClassName
 		this.flushToDisk();
 		this.initial(className);
 		classId = this.getClassId(this.currClassName);
+		if (classId == virtualDisk.MAX_INTEGER) {
+			System.out.println("ERROR: (in virtualDisk.insert) classId == virtualDisk.MAX_INTEGER!");
+			return false;
+		}
 		classStruct = this.getClassStruct(this.currClassName);
 		if (classStruct == null) {
 			System.err.println("ERROR: (in virtualDisk.insert) classStruct == null!");
 			return false;
 		}
+		// remove first element from tuple
+		tupleBiPointer = tuple.remove(0);
 		// get first block
 		n_block = virtualDisk.MAX_INTEGER;
 		for (int i = 0; i < this.systemObjectTable.size() ; i++) {
@@ -2837,7 +3025,17 @@ public class virtualDisk {
 			return false;
 		}
 
-		this.writeOneTuple(lengthList, typeList, realBlockNum, realBlockOffset, tuple);
+		// write tuple to vdisk
+		if (!this.writeOneTuple(lengthList, typeList, realBlockNum, realBlockOffset, tuple)) {
+			System.out.println("ERROR: (in virtualDisk.insert) writeOneTuple fail!");
+			return false;
+		}
+
+		// update biPointerTable
+		if (!this.updateBiPointerTable(classStruct, tupleBiPointer)) {
+			System.out.println("ERROR: (in virtualDisk.insert) update biPointerTable fail!");
+			return false;
+		}
 
 		// reset fakeBlockNum, fakeBlockOffset
 		this.fakeBlockOffset += 1;
@@ -2859,6 +3057,7 @@ public class virtualDisk {
 	 */
 	public boolean update(ArrayList<String> tuple) {
 		int realBlockNum, realBlockOffset;
+		String tupleBiPointer;
 		classStruct classStruct;
 		ArrayList<Integer> lengthList, typeList;
 
@@ -2875,6 +3074,9 @@ public class virtualDisk {
 		} else {
 			this.fakeBlockOffset -= 1;
 		}
+
+		// remove first element from tuple
+		tupleBiPointer = tuple.remove(0);
 		
 		// calculate offset & block
 		realBlockNum = this.fakeBlock2RealBlock();
@@ -2900,12 +3102,56 @@ public class virtualDisk {
 			System.err.println("ERROR: (in virtualDisk.update) writeOneTuple fail!");
 			return false;
 		}
+
+		// update biPointerTable
+		if (!this.updateBiPointerTable(classStruct, tupleBiPointer)) {
+			System.out.println("ERROR: (in virtualDisk.update) update biPointerTable fail!");
+			return false;
+		}
 	
 		// reset fakeBlockNum, fakeBlockOffset
 		this.fakeBlockOffset += 1;
 		if (this.fakeBlockOffset == virtualDisk.PAGESIZE) {
 			this.fakeBlockOffset = 0;
 			this.fakeBlockNum += 1;
+		}
+
+		return true;
+	}
+
+	private boolean deleteBiPointerTable(classStruct classStruct, int objectId) {
+		int classId, childrenClassId;
+		biPointerTable tempBiPointerTable;
+
+		if ((classStruct == null) || (objectId == virtualDisk.MAX_INTEGER)) {
+			System.out.printf("ERROR: (in virtualDisk.deleteBiPointerTable) ((classStruct == null) || (objectId(%d) == virtualDisk.MAX_INTEGER))!\n", objectId);
+			return false;
+		}
+
+		classId = this.getClassId(classStruct.name);
+		if (classId == virtualDisk.MAX_INTEGER) {
+			System.out.println("ERROR: (in virtualDisk.deleteBiPointerTable) (classId == virtualDisk.MAX_INTEGER)!");
+			return false;
+		}
+
+		// remove all deleted children biPointer
+		if (!this.removeDeletedChildrenBiPointerTable(classStruct)) {
+			System.out.println("ERROR: (in virtualDisk.updateBiPointerTable) remove all deleted children biPointer fail!");
+			return false;
+		}
+
+		// remove deleted object's biPointer
+		for (int i = 0; i < this.systemBiPointerTable.size(); i++) {
+			tempBiPointerTable = this.systemBiPointerTable.get(i);
+			if ((tempBiPointerTable.classId == classId) && (tempBiPointerTable.objectId == objectId)) {
+				this.systemBiPointerTable.remove(i);
+				// no break
+			}
+		}
+
+		if (!this.flushBiPointerTable()) {
+			System.out.println("ERROR: (in virtualDisk.deleteBiPointerTable) flush biPointerTable fail!");
+			return false;
 		}
 
 		return true;
@@ -2920,8 +3166,14 @@ public class virtualDisk {
 	 */
 	public boolean delete() {
 		int index, n_block, classId;
-		
+		classStruct classStruct;
+
 		classId = this.getClassId(this.currClassName);
+		classStruct = this.getClassStruct(this.currClassName);
+		if ((classStruct == null) || (classId == virtualDisk.MAX_INTEGER)) {
+			System.err.printf("ERROR: (in virtualDisk.delete) ((classStruct == null) || (classId(%d) == virtualDisk.MAX_INTEGER))!\n", classId);
+			return false;
+		}
 		// get first block
 		n_block = virtualDisk.MAX_INTEGER;
 		for (int i = 0; i < this.systemObjectTable.size() ; i++) {
@@ -2936,15 +3188,28 @@ public class virtualDisk {
 			return false;
 		}
 
-		// current -1
+		// current - 1
 		index = (this.fakeBlockNum * virtualDisk.PAGESIZE) + this.fakeBlockOffset - 1;
 
+		// check whether index is valid
 		if (index >= (this.blockSize * virtualDisk.BITS_OF_BYTE)) {
 			System.err.printf("ERROR: (in virtualDisk.delete) index(%d) to large!\n", index);
 			return false;
-		} else {
-			return this.freeOneTuple(n_block, index);
 		}
+
+		// delete biPointerTable
+		if (!this.deleteBiPointerTable(classStruct, index)) {
+			System.out.println("ERROR: (in virtualDisk.delete) deleteBiPointerTable fail!");
+			return false;
+		}
+
+		// free one tuple from slub-like table
+		if (!this.freeOneTuple(n_block, index)) {
+			System.out.println("ERROR: (in virtualDisk.delete) freeOneTuple fail!");
+			return false;
+		}
+
+		return true;
 	}
 
 }
