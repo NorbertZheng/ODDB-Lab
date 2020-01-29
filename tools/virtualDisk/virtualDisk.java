@@ -114,6 +114,12 @@ public class virtualDisk {
 		getSystemTable();
 	}
 
+	@Override
+	protected void finalize() throws Throwable {
+		this.flushToDisk();
+		super.finalize();
+	}
+
 	/*
 	 * create a new vdisk
 	 * @Ret:
@@ -1365,6 +1371,36 @@ public class virtualDisk {
 		block = virtualDisk.N_OF_CONFIG_BLOCK + ((n_block * this.entrySize) / this.blockSize);
 
 		return block;
+	}
+
+	/*
+	 * get attr list of class
+	 * @Args:
+	 *  src(classStruct)			: src class struct
+	 * @Ret:
+	 *  data(ArrayList<String>)		: corresponding attr list
+	 */
+	public ArrayList<Attribute> getRealAttributeList(classStruct src) {
+		Attribute attr;
+		ArrayList<Attribute> data;
+
+		if (src == null) {
+			System.out.println("ERROR: (in virtualDisk.getTypeList) src == null!");
+			return null;
+		} else {
+			data = new ArrayList<Attribute>();
+			for (int i = 0; i < src.attrList.size(); i++) {
+				attr = src.attrList.get(i);
+
+				if ((attr.expression != null) && (!attr.expression.equals(""))) {
+					// virtualAttribute
+					continue;
+				}
+
+				data.add(attr);
+			}
+			return data;
+		}
 	}
 
 	/*
