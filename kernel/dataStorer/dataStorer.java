@@ -11,6 +11,14 @@ public class dataStorer {
 		this.vdisk = new virtualDisk(baseLocation);
 	}
 
+	@Override
+	protected void finalize() throws Throwable {
+		if (this.vdisk != null) {
+			this.vdisk.flushToDisk();
+		}
+		super.finalize();
+	}
+
 	/*
 	 * encode ArrayList<String> to String, then write system table
 	 * @Args:
@@ -18,8 +26,8 @@ public class dataStorer {
 	 * @Ret:
 	 *  result(String)			: encode string
 	 */
-	public String encode(ArrayList<String> data) {
-		return this.vdisk.encode(data);
+	public static String encode(ArrayList<String> data) {
+		return virtualDisk.encode(data);
 	}
 
 	/*
@@ -29,8 +37,19 @@ public class dataStorer {
 	 * @Ret:
 	 *  result(ArrayList<String>)	: decode string list
 	 */
-	public ArrayList<String> decode(String code) {
-		return this.vdisk.decode(code);
+	public static ArrayList<String> decode(String code) {
+		return virtualDisk.decode(code);
+	}
+
+	/*
+	 * string can parse to int
+	 * @Args:
+	 *  src(String)		: source string
+	 * @Ret:
+	 *  flag(boolean)	: whether can string parse to int
+	 */
+	public static boolean canParseInt(String src) {
+		return virtualDisk.canParseInt(src);
 	}
 
 	/*
@@ -53,6 +72,17 @@ public class dataStorer {
 	 */
 	public classStruct getClassStruct(String className) {
 		return this.vdisk.getClassStruct(className);
+	}
+
+	/*
+	 * get attr list of class
+	 * @Args:
+	 *  src(classStruct)			: src class struct
+	 * @Ret:
+	 *  data(ArrayList<String>)		: corresponding attr list
+	 */
+	public ArrayList<Attribute> getRealAttributeList(classStruct src) {
+		return this.vdisk.getRealAttributeList(src);
 	}
 
 	/*
