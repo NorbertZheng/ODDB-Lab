@@ -1,0 +1,8 @@
+# dir
+/bin
+
+# file
+*.class
+/data/data.sqlite
+/data/systemTable/*_TABLE
+
