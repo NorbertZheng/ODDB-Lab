@@ -351,6 +351,8 @@ public class SQLExecutor {
 				// update fakeOffset & parentFakeOffset
 				parentFakeOffset += 1;
 				fakeOffset += 1;
+				// re-initial parentClassName
+				this.vdisk.initial(parentClassName, parentFakeOffset / dataStorer.PAGESIZE, parentFakeOffset % dataStorer.PAGESIZE);
 			} else {
 				// get parentTupleBiPointer
 				parentTupleBiPointer = dataStorer.decode(parentTuple.get(0));
@@ -369,6 +371,8 @@ public class SQLExecutor {
 				// update fakeOffset & parentFakeOffset
 				parentFakeOffset += 1;
 				// not update fakeOffset
+				// re-initial parentClassName
+				this.vdisk.initial(parentClassName, parentFakeOffset / dataStorer.PAGESIZE, parentFakeOffset % dataStorer.PAGESIZE);
 			}
 		}
 
