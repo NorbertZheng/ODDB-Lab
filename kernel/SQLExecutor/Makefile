@@ -1,5 +1,5 @@
 src = SQLExecutor
-dep = ../dataStorer/bin/dataStorer.class ../../tools/calculationParser/bin/calculationParser.class ../../tools/calculationParser/src/bin/calculationExecutor.class ../../tools/booleanParser/bin/booleanParser.class ../../tools/booleanParser/src/bin/booleanExecutor.class
+dep = ../dataStorer/bin/dataStorer.class ../../tools/calculationParser/bin/calculationParser.class ../../tools/calculationParser/src/calculationExecutor.class ../../tools/booleanParser/bin/booleanParser.class ../../tools/booleanParser/src/booleanExecutor.class
 srcClassPath = ./:./src/:../SQLParser/src/:../dataStorer/src/:../dataStorer/bin/:../../tools/booleanParser/:../../tools/booleanParser/src/:../../tools/booleanParser/bin/:../../tools/calculationParser/:../../tools/calculationParser/src/../../tools/calculationParser/bin/
 destClassPath = ./bin/
 
@@ -14,13 +14,13 @@ $(destClassPath)$(src).class: $(src).java $(destClassPath) $(dep)
 ../../tools/calculationParser/bin/calculationParser.class: ../../tools/calculationParser/Makefile
 	cd ../../tools/calculationParser && make all
 
-../../tools/calculationParser/src/bin/calculationExecutor.class: ../../tools/calculationParser/src/Makefile
+../../tools/calculationParser/src/calculationExecutor.class: ../../tools/calculationParser/src/Makefile
 	cd ../../tools/calculationParser/src && make all
 
 ../../tools/booleanParser/bin/booleanParser.class: ../../tools/booleanParser/Makefile
 	cd ../../tools/booleanParser && make all
 
-../../tools/booleanParser/src/bin/booleanExecutor.class: ../../tools/booleanParser/src/Makefile
+../../tools/booleanParser/src/booleanExecutor.class: ../../tools/booleanParser/src/Makefile
 	cd ../../tools/booleanParser/src && make all
 
 $(destClassPath):

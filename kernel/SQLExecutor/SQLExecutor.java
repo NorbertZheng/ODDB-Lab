@@ -355,7 +355,7 @@ public class SQLExecutor {
 				// get parentTupleBiPointer
 				parentTupleBiPointer = dataStorer.decode(parentTuple.get(0));
 				// should be ok, match children's order
-				parentTupleBiPointer.add(Integer.toString(-1));
+				parentTupleBiPointer.add(Integer.toString(dataStorer.DEFAULT_BIPOINTER));
 				parentTuple.set(0, dataStorer.encode(parentTupleBiPointer));
 				// fakeOffset already recorded, initial parentClassName
 				this.vdisk.initial(parentClassName, parentFakeOffset / dataStorer.PAGESIZE, parentFakeOffset % dataStorer.PAGESIZE);
@@ -403,7 +403,7 @@ public class SQLExecutor {
 		// init tuple
 		// add biPointer
 		tupleBiPointer = new ArrayList<String>();
-		tupleBiPointer.add("-1");
+		tupleBiPointer.add(Integer.toString(dataStorer.DEFAULT_BIPOINTER));
 		tuple.add(dataStorer.encode(tupleBiPointer));
 		for (int i = 0; i < realAttributeList.size(); i++) {
 			attribute = realAttributeList.get(i);
@@ -561,12 +561,13 @@ public class SQLExecutor {
 	}
 
 	private ArrayList<String> insertTuple() {
-		int i, j;
+		int i, j, fakeOffset, childrenFakeOffset;
 		String className;
-		classStruct classStruct;
+		whereNode conditionExpression;
+		classStruct classStruct, childrenClassStruct;
 		Attribute attribute;
 		ArrayList<Attribute> realAttributeList;
-		ArrayList<String> tuple = new ArrayList<String>();
+		ArrayList<String> tuple = new ArrayList<String>(), tupleBiPointer, childrenTuple, childrenTupleBiPointer;
 		ArrayList<String> result = new ArrayList<String>();
 
 		// check SQLNode
@@ -687,18 +688,107 @@ public class SQLExecutor {
 			}
 		}
 
-		// temp add null pointer
-		tuple.add(0, dataStorer.encode(new ArrayList<String>()));
+		// add biPointer point to parent(which is -1)
+		tupleBiPointer = new ArrayList<String>();
+		tupleBiPointer.add(Integer.toString(dataStorer.DEFAULT_BIPOINTER));
+		tuple.add(0, dataStorer.encode(tupleBiPointer));
 
 		// execute insertTuple
 		if (!this.vdisk.insert(className, tuple)) {
 			System.out.println("ERROR: (in SQLExecutor.insertTuple) this.vdisk insert fail!");
 			result.add(SQLExecutor.EXECUTE_FAIL);
 			result.add("ERROR: (in SQLExecutor.insertTuple) this.vdisk insert fail!");
-		} else {
-			result.add(SQLExecutor.EXECUTE_SUCCESS);
-			result.add("INFO: insert tuple(" + SQLExecutor.tuple2String(tuple) + ") successfully!");
+			return result;
 		}
+
+		// get fakeOffset
+		fakeOffset = this.vdisk.getOffset();
+
+		// insertTupleHelper
+		if (this.insertTupleHelper(classStruct, tuple, tupleBiPointer, fakeOffset).get(0).equals(SQLExecutor.EXECUTE_FAIL)) {
+			System.out.printf("ERROR: (in SQLExecutor.insertTuple) insertTupleHelper classStruct(%s) fail!\n", classStruct.name);
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.insertTuple) insertTupleHelper classStruct(" + classStruct.name + ") fail!");
+			return result;
+		}
+
+		result.add(SQLExecutor.EXECUTE_SUCCESS);
+		result.add("INFO: insert tuple(" + SQLExecutor.tuple2String(tuple) + ") successfully!");
+
+		return result;
+	}
+
+	private ArrayList<String> insertTupleHelper(classStruct classStruct, ArrayList<String> tuple, ArrayList<String> tupleBiPointer, int fakeOffset) {
+		int i, childrenFakeOffset;
+		classStruct childrenClassStruct;
+		whereNode conditionExpression;
+		ArrayList<String> childrenTuple, childrenTupleBiPointer;
+		ArrayList<String> result = new ArrayList<String>();
+
+		// check whether have children
+		if ((classStruct.children != null) && (classStruct.children.size() != 0)) {
+			for (i = 0; i < classStruct.children.size(); i++) {
+				// get children classStruct
+				childrenClassStruct = this.vdisk.getClassStruct(classStruct.children.get(i));
+				if (childrenClassStruct == null) {
+					System.out.printf("ERROR: (in SQLExecutor.insertTupleHelper) this.vdisk get classStruct(%s) fail!\n", classStruct.children.get(i));
+					result.add(SQLExecutor.EXECUTE_FAIL);
+					result.add("ERROR: (in SQLExecutor.insertTupleHelper) this.vdisk get classStruct(" + classStruct.children.get(i) + ") fail!");
+					return result;
+				}
+				// get whereNode
+				try {
+					conditionExpression = booleanParser.evaluate(childrenClassStruct.condition);
+				} catch (ParseException ex) {
+					System.err.println(ex.getMessage());
+					System.out.printf("ERROR: (in SQLExecutor.insertTupleHelper) condition(%s) cannot be parserd!\n", childrenClassStruct.condition);
+					result.add(SQLExecutor.EXECUTE_FAIL);
+					result.add("ERROR: (in SQLExecutor.insertTupleHelper) condition(" + childrenClassStruct.condition + ") cannot be parserd!");
+					return result;
+				}
+				if (this.tupleSatisfied(conditionExpression, classStruct, tuple)) {
+					childrenTuple = this.initTuple(childrenClassStruct);
+					childrenTupleBiPointer = new ArrayList<String>();
+					childrenTupleBiPointer.add(Integer.toString(fakeOffset));
+					// set biPointer point to parent
+					childrenTuple.set(0, dataStorer.encode(childrenTupleBiPointer));
+					// fakeOffset already record, initial childrenClassName
+					this.vdisk.initial(childrenClassStruct.name);
+					if (!this.vdisk.insert(childrenClassStruct.name, childrenTuple)) {
+						System.out.printf("ERROR: (in SQLExecutor.insertTupleHelper) insert tuple to childrenClassStruct(%s) fail!\n", childrenClassStruct.name);
+						result.add(SQLExecutor.EXECUTE_FAIL);
+						result.add("ERROR: (in SQLExecutor.insertTupleHelper) insert tuple to childrenClassStruct(" + childrenClassStruct.name + ") fail!");
+						return result;
+					}
+					childrenFakeOffset = this.vdisk.getOffset();
+					// should match, suppose in order
+					tupleBiPointer.add(Integer.toString(childrenFakeOffset));
+					// handle children's children
+					if (this.insertTupleHelper(childrenClassStruct, childrenTuple, childrenTupleBiPointer, childrenFakeOffset).get(0).equals(SQLExecutor.EXECUTE_FAIL)) {
+						System.out.printf("ERROR: (in SQLExecutor.insertTupleHelper) insertTupleHelper childrenClassStruct(%s) fail!\n", childrenClassStruct.name);
+						result.add(SQLExecutor.EXECUTE_FAIL);
+						result.add("ERROR: (in SQLExecutor.insertTupleHelper) insertTupleHelper childrenClassStruct(" + childrenClassStruct.name + ") fail!");
+						return result;
+					}
+				} else {
+					tupleBiPointer.add(Integer.toString(dataStorer.DEFAULT_BIPOINTER));
+				}
+			}
+			tuple.set(0, dataStorer.encode(tupleBiPointer));
+			// initial className
+			this.vdisk.initial(classStruct.name, fakeOffset / dataStorer.PAGESIZE, fakeOffset % dataStorer.PAGESIZE);
+			if (!this.vdisk.update(tuple)) {
+				System.out.println("ERROR: (in SQLExecutor.insertTupleHelper) this.vdisk update tuple fail!");
+				result.add(SQLExecutor.EXECUTE_FAIL);
+				result.add("ERROR: (in SQLExecutor.insertTupleHelper) this.vdisk update tuple fail!");
+				return result;
+			} else {
+				// do nothing
+			}
+		}
+
+		result.add(SQLExecutor.EXECUTE_SUCCESS);
+		result.add("INFO: insert tuple(" + SQLExecutor.tuple2String(tuple) + ") successfully!");
 
 		return result;
 	}

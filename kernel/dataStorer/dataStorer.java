@@ -4,6 +4,7 @@ import java.util.ArrayList;
 public class dataStorer {
 
 	public final static int PAGESIZE = virtualDisk.PAGESIZE;
+	public final static int DEFAULT_BIPOINTER = virtualDisk.DEFAULT_BIPOINTER;
 
 	private virtualDisk vdisk;
 
