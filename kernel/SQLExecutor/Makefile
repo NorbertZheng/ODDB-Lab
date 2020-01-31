@@ -1,6 +1,6 @@
 src = SQLExecutor
 dep = ../dataStorer/bin/dataStorer.class ../../tools/calculationParser/bin/calculationParser.class ../../tools/calculationParser/src/calculationExecutor.class ../../tools/booleanParser/bin/booleanParser.class ../../tools/booleanParser/src/booleanExecutor.class
-srcClassPath = ./:./src/:../SQLParser/src/:../dataStorer/src/:../dataStorer/bin/:../../tools/booleanParser/:../../tools/booleanParser/src/:../../tools/booleanParser/bin/:../../tools/calculationParser/:../../tools/calculationParser/src/../../tools/calculationParser/bin/
+srcClassPath = ./:./src/:../SQLParser/src/:../dataStorer/src/:../dataStorer/bin/:../../tools/booleanParser/:../../tools/booleanParser/src/:../../tools/booleanParser/bin/:../../tools/calculationParser/:../../tools/calculationParser/src/:../../tools/calculationParser/bin/
 destClassPath = ./bin/
 
 all: $(destClassPath)$(src).class

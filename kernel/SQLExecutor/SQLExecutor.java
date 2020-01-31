@@ -1225,8 +1225,355 @@ public class SQLExecutor {
 	}
 
 	private ArrayList<String> selectTuple() {
+		int i, j, fakeOffset, childrenFakeOffset;
+		String className;
+		Attribute attribute;
+		classStruct classStruct, childrenClassStruct;
+		whereNode conditionExpression;
+		ArrayList<Attribute> realAttributeList;
+		ArrayList<String> whereIdentifier, tuple, tupleBiPointer, childrenTuple, childrenTupleBiPointer;
+		ArrayList<String> result = new ArrayList<String>();
+
+		// check SQLNode
+		// check SQLNode.classNameList
+		if ((this.SQLInstruction.classNameList == null) || (this.SQLInstruction.classNameList.size() != 1)) {
+			System.out.println("ERROR: (in SQLExecutor.selectTuple) ((this.SQLInstruction.classNameList == null) || (this.SQLInstruction.classNameList.size() != 1))!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.selectTuple) SQLNode's classNameList can only hold one className!");
+			return result;
+		}
+		// check whether className exists
+		className = this.SQLInstruction.classNameList.get(0);
+		if (!this.vdisk.existClass(className)) {
+			System.out.printf("ERROR: (in SQLExecutor.selectTuple) className(%s) do not exists!\n", className);
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.selectTuple) className(" + className + ") do not exists!");
+			return result;
+		}
+		// get classStruct
+		classStruct = this.vdisk.getClassStruct(className);
+		// check SQLNode.attrList not null
+		if ((this.SQLInstruction.attrList == null) || (this.SQLInstruction.attrList.size() == 0)) {
+			System.out.println("ERROR: (in SQLExecutor.selectTuple) ((this.SQLInstruction.attrList == null) || (this.SQLInstruction.attrList.size() == 0))!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.selectTuple) SQLNode's attrList cannot be null!");
+			return result;
+		}
+		// check SQLNode.attrList is not null
+		if ((classStruct.attrList == null) || (classStruct.attrList.size() == 0)) {
+			System.out.println("ERROR: (in SQLExecutor.selectTuple) ((classStruct.attrList == null) || (classStruct.attrList.size() == 0))!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.selectTuple) ((classStruct.attrList == null) || (classStruct.attrList.size() == 0))!");
+			return result;
+		}
+		realAttributeList = this.vdisk.getRealAttributeList(classStruct);
+		// check SQLNode.attrList's attribute valid
+		for (i = 0; i < this.SQLInstruction.attrList.size(); i++) {
+			attribute = this.SQLInstruction.attrList.get(i);
+			if ((attribute.expression == null) || attribute.expression.equals("")) {
+				System.out.printf("ERROR: (in SQLExecutor.selectTuple) attribute(NO.%d) ((attribute.expression == null) || attribute.expression.equals(\"\"))!\n", i);
+				result.add(SQLExecutor.EXECUTE_FAIL);
+				result.add("ERROR: (in SQLExecutor.selectTuple) attribute(NO." + Integer.toString(i) + ")'s expression cannot be null!");
+				return result;
+			}
+			// check attribute.name is null
+			if ((attribute.name != null) && (!attribute.name.equals(""))) {
+				System.out.printf("ERROR: (in SQLExecutor.selectTuple) attribute(NO.%d) ((attribute.name != null) && (!attribute.name.equals(\"\")))!\n", i);
+				result.add(SQLExecutor.EXECUTE_FAIL);
+				result.add("ERROR: (in SQLExecutor.selectTuple) attribute(NO." + Integer.toString(i) + ")'s name must be null!");
+				return result;
+			}
+			// check is in classStruct's attrList
+			for (j = 0; j < classStruct.attrList.size(); j++) {
+				if (attribute.name.equals(classStruct.attrList.get(j).name)) {
+					break;
+				}
+			}
+			if (j == classStruct.attrList.size()) {
+				System.out.printf("ERROR: (in SQLExecutor.selectTuple) attrName(%s) not in classStruct.attrList!\n", attribute.name);
+				result.add(SQLExecutor.EXECUTE_FAIL);
+				result.add("ERROR: (in SQLExecutor.selectTuple) attrName(" + attribute.name + ") not in classStruct.attrList!");
+				return result;
+			}
+			// check attrList is a set
+			for (j = i + 1; j < this.SQLInstruction.attrList.size(); j++) {
+				if (attribute.name.equals(this.SQLInstruction.attrList.get(j).name)) {
+					System.out.printf("ERROR: (in SQLExecutor.selectTuple) attribute(NO.%d)'name is not unique!\n", i);
+					result.add(SQLExecutor.EXECUTE_FAIL);
+					result.add("ERROR: (in SQLExecutor.selectTuple) attribute(NO." + Integer.toString(i) + ")'name is not unique!");
+					return result;
+				}
+			}
+			// check attribute.className not null
+			if ((attribute.className == null) || attribute.className.equals("")) {
+				System.out.printf("ERROR: (in SQLExecutor.selectTuple) attribute(NO.%d) ((attribute.className == null) || attribute.className.equals(\"\"))!\n", i);
+				result.add(SQLExecutor.EXECUTE_FAIL);
+				result.add("ERROR: (in SQLExecutor.selectTuple) attribute(NO." + Integer.toString(i) + ")'s className cannot be null!");
+				return result;
+			}
+		}
+		// check SQLNode'attrValueList is null
+		if ((this.SQLInstruction.attrValueList != null) && (!this.SQLInstruction.attrValueList.equals(""))) {
+			System.out.println("ERROR: (in SQLExecutor.selectTuple) ((this.SQLInstruction.attrValueList != null) && (!this.SQLInstruction.attrValueList.equals(\"\")))");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.selectTuple) SQLNode'attrValueList must be null!");
+			return result;
+		}
+		// check where (can be either null or not null)
+		if (this.SQLInstruction.where != null) {
+			// check where'identifier is in classStruct's attrList
+			whereIdentifier = this.SQLInstruction.where.getAllIdentifier();
+			if (whereIdentifier == null) {
+				System.out.println("ERROR: (in SQLExecutor.selectTuple) (whereIdentifier == null)!");
+				result.add(SQLExecutor.EXECUTE_FAIL);
+				result.add("ERROR: (in SQLExecutor.selectTuple) (whereIdentifier == null)!");
+				return result;
+			}
+			for (i = 0; i < whereIdentifier.size(); i++) {
+				for (j = 0; j < classStruct.attrList.size(); j++) {
+					if (whereIdentifier.get(i).equals(classStruct.attrList.get(j).name)) {
+						break;
+					}
+				}
+				if (j == classStruct.attrList.size()) {
+					System.out.printf("ERROR: (in SQLExecutor.selectTuple) identifier(%s) not in classStruct(%s)'s attrList!\n", whereIdentifier.get(i), classStruct.name);
+					result.add(SQLExecutor.EXECUTE_FAIL);
+					result.add("ERROR: (in SQLExecutor.selectTuple) identifier(" + whereIdentifier.get(i) + ") not in classStruct(" + classStruct.name + ")'s attrList!");
+					return result;
+				}
+			}
+		}
+
+		return null;		// TODO
+	}
+
+	private boolean crossTupleSatisfied(whereNode condition, classStruct classStruct, int fakeOffset) {
+		boolean result;
+		int i, j, k, l;
+		String identifier, tupleElement;
+		Attribute attribute;
+		ArrayList<Attribute> realAttributeList;
+		ArrayList<String> conditionIdentifier, parentTuple;
+		Map<String, Integer> intMap = new HashMap<>();
+		Map<String, String> stringMap = new HashMap<>();
+
+		// check params
+		if ((condition == null) || (classStruct == null) || (classStruct.attrList == null)) {
+			System.out.println("ERROR: (in SQLExecutor.crossTupleSatisfied) ((condition == null) || (classStruct == null) || (classStruct.attrList == null))!");
+			return false;
+		}
+
+		conditionIdentifier = condition.getAllIdentifier();
+		// check condition identifier
+		if (conditionIdentifier == null) {
+			System.out.println("ERROR: (in SQLExecutor.crossTupleSatisfied) (conditionIdentifier == null)!");
+			return false;
+		}
+		// only support real-attr for now
+		realAttributeList = this.vdisk.getRealAttributeList(classStruct);
+		if (realAttributeList == null) {
+			System.out.println("ERROR: (in SQLExecutor.crossTupleSatisfied) (realAttributeList == null)!");
+			return false;
+		}
+		for (i = 0; i < conditionIdentifier.size(); i++) {
+			identifier = conditionIdentifier.get(i);
+			if (!this.crossGetValue(classStruct, identifier, fakeOffset, intMap, stringMap)) {
+				System.out.printf("ERROR: (in SQLExecutor.crossTupleSatisfied) class(%s) do not have attr(%s)!\n", classStruct.name, identifier);
+				return false;
+			}
+		}
+		// all map ready, call booleanExecutor
+		result = booleanExecutor.calculate(condition.toString(), intMap, stringMap);
+
+		return result;
+	}
+
+	private ArrayList<String> attributeGetSource(classStruct classStruct, String attributeName, int fakeOffset) {
+		int i, j;
+		classStruct parentClassStruct;
+		calculationNode calculationExpression;
+		ArrayList<Attribute> realAttributeList;
+		ArrayList<String> tuple, expressionIdentifier;
+		ArrayList<String> result = new ArrayList<String>(), subResult;
+		Map<String, Integer> intMap = new HashMap<>();
+		
+
+		// check params
+		if ((classStruct == null) || (attributeName == null) || (fakeOffset == dataStorer.DEFAULT_BIPOINTER)) {
+			System.out.println("ERROR: (in SQLExecutor.attributeGetSource) ((classStruct == null) || (attributeName == null) || (fakeOffset == dataStorer.DEFAULT_BIPOINTER))!");
+			return null;
+		}
+
+		// whether classStruct has parent
+		if ((classStruct.parent == null) || (classStruct.parent.equals(""))) {
+			System.out.println("ERROR: (in SQLExecutor.attributeGetSource) ((classStruct.parent == null) || (classStruct.parent.equals(\"\")))!");
+			return null;
+		}
+
+		// get parentClassStruct
+		parentClassStruct = this.vdisk.getClassStruct(classStruct.parent);
+		if (parentClassStruct == null) {
+			System.out.println("ERROR: (in SQLExecutor.attributeGetSource) (parentClassStruct == null)!");
+			return null;
+		}
+
+		// check whether in classStruct's realAttributeList
+		realAttributeList = this.vdisk.getRealAttributeList(classStruct);
+		if (realAttributeList == null) {
+			System.out.println("ERROR: (in SQLExecutor.attributeGetSource) (realAttributeList == null)!");
+			return null;
+		}
+		for (i = 0 ; i < realAttributeList.size(); i++) {
+			if (realAttributeList.get(i).name.equals(attributeName)) {
+				// find real-attr
+				// initial classStruct
+				this.vdisk.initial(classStruct.name, fakeOffset / dataStorer.PAGESIZE, fakeOffset % dataStorer.PAGESIZE);
+				// get tuple
+				if ((tuple = this.vdisk.Next()) == null) {
+					System.out.println("ERROR: (in SQLExecutor.attributeGetSource) ((tuple = this.vdisk.Next()) == null)!");
+					return null;
+				}
+				result.add(classStruct.name);
+				result.add(Integer.toString(realAttributeList.get(i).type));
+				result.add(attributeName);
+				result.add(realAttributeList.get(i).expression);
+				result.add(tuple.get(i + 1));
+
+				return result;
+			}
+		}
+		// not in real-attr, check v-attr
+		for (i = 0; i < classStruct.attrList.size(); i++) {
+			if (classStruct.attrList.get(i).name.equals(attributeName)) {
+				if ((classStruct.attrList.get(i).expression != null) && (!classStruct.attrList.get(i).expression.equals(""))) {
+					// v-attr
+					try {
+						calculationExpression = calculationParser.evaluate(classStruct.attrList.get(i).expression);
+					} catch (ParseException ex) {
+						System.err.println(ex.getMessage());
+						System.out.println("ERROR: (in SQLExecutor.attributeGetSource) classStruct.attrList.get(i).expression cannot be parsed!");
+						return null;
+					}
+					expressionIdentifier = calculationExpression.getAllIdentifier();
+					if ((expressionIdentifier == null) || (expressionIdentifier.size() == 0)) {
+						System.out.println("ERROR: (in SQLExecutor.attributeGetSource) (expressionIdentifier == null)!");
+						return null;
+					}
+					// initial classStruct
+					this.vdisk.initial(classStruct.name, fakeOffset / dataStorer.PAGESIZE, fakeOffset % dataStorer.PAGESIZE);
+					// get tuple
+					if ((tuple = this.vdisk.Next()) == null) {
+						System.out.println("ERROR: (in SQLExecutor.attributeGetSource) ((tuple = this.vdisk.Next()) == null)!");
+						return null;
+					}
+					if (!dataStorer.canParseInt(dataStorer.decode(tuple.get(0)).get(0))) {
+						System.out.println("ERROR: (in SQLExecutor.attributeGetSource) !dataStorer.canParseInt(dataStorer.decode(tuple.get(0)).get(0))!");
+						return null;
+					}
+					// suppose attributeType
+					if (expressionIdentifier.size() == 1) {
+						// is a string
+						subResult = this.attributeGetSource(parentClassStruct, expressionIdentifier.get(0), Integer.parseInt(dataStorer.decode(tuple.get(0)).get(0)));
+						if (subResult == null) {
+							System.out.println("ERROR: (in SQLExecutor.attributeGetSource) (subResult == null)!");
+							return null;
+						}
+						if (!dataStorer.canParseInt(subResult.get(1))) {
+							System.out.println("ERROR: (in SQLExecutor.attributeGetSource) !dataStorer.canParseInt(subResult.get(1))!");
+							return null;
+						}
+						if (Integer.parseInt(subResult.get(1)) != Attribute.STRING) {
+							System.out.println("ERROR: (in SQLExecutor.attributeGetSource) (Integer.parseInt(subResult.get(1)) != Attribute.STRING)!");
+							return null;
+						}
+						result.add(classStruct.name);
+						result.add(Integer.toString(Attribute.STRING));
+						result.add(attributeName);
+						result.add(classStruct.attrList.get(i).expression);
+						result.add(subResult.get(4));
+					} else {
+						// all INT
+						for (j = 0; j < expressionIdentifier.size(); j++) {
+							subResult = this.attributeGetSource(parentClassStruct, expressionIdentifier.get(j), Integer.parseInt(dataStorer.decode(tuple.get(0)).get(0)));
+							if (subResult == null) {
+								System.out.println("ERROR: (in SQLExecutor.attributeGetSource) (subResult == null)!");
+								return null;
+							}
+							if (!dataStorer.canParseInt(subResult.get(1))) {
+								System.out.println("ERROR: (in SQLExecutor.attributeGetSource) !dataStorer.canParseInt(subResult.get(1))!");
+								return null;
+							}
+							if (Integer.parseInt(subResult.get(1)) != Attribute.INT) {
+								System.out.println("ERROR: (in SQLExecutor.attributeGetSource) (Integer.parseInt(subResult.get(1)) != Attribute.INT)!");
+								return null;
+							}
+							intMap.put(subResult.get(2), Integer.parseInt(subResult.get(4)));
+						}
+						// all intMap get, let's calculate
+						result.add(classStruct.name);
+						result.add(Integer.toString(Attribute.INT));
+						result.add(attributeName);
+						result.add(classStruct.attrList.get(i).expression);
+						result.add(Integer.toString(calculationExecutor.calculate(classStruct.attrList.get(i).expression, intMap)));;
+					}
+
+					return result;
+				} else {
+					// initial classStruct
+					this.vdisk.initial(classStruct.name, fakeOffset / dataStorer.PAGESIZE, fakeOffset % dataStorer.PAGESIZE);
+					// get tuple
+					if ((tuple = this.vdisk.Next()) == null) {
+						System.out.println("ERROR: (in SQLExecutor.attributeGetSource) ((tuple = this.vdisk.Next()) == null)!");
+						return null;
+					}
+					result.add(classStruct.name);
+					result.add(Integer.toString(classStruct.attrList.get(i).type));
+					result.add(attributeName);
+					result.add(classStruct.attrList.get(i).expression);
+					result.add(tuple.get(i + 1));
+
+					return result;
+				}
+			}
+		}
+		// not find
+		System.out.println("ERROR: (in SQLExecutor.attributeGetSource) not find!");
 		return null;
 	}
+
+	private boolean crossGetValue(classStruct classStruct, String identifier, int fakeOffset,  Map<String, Integer> intMap, Map<String, String> stringMap) {
+		ArrayList<String> value;
+
+		// check params
+		if ((classStruct == null) || (identifier == null) || (identifier.equals("")) || (intMap == null) || (stringMap == null)) {
+			System.out.println("ERROR: (in SQLExecutor.crossGetValue) ((classStruct == null) || (identifier == null) || (identifier.equals(\"\")) || (intMap == null) || (stringMap == null))!");
+			return false;
+		}
+
+		value = this.attributeGetSource(classStruct, identifier, fakeOffset);
+		if ((value == null) || (value.size() != 1)) {
+			System.out.println("ERROR: (in SQLExecutor.crossGetValue) ((value == null) || (value.size() != 1))!");
+			return false;
+		}
+		if (!dataStorer.canParseInt(value.get(1))) {
+			System.out.println("ERROR: (in SQLExecutor.crossGetValue) (!dataStorer.canParseInt(value.get(1)))!");
+			return false;
+		}
+		if (Integer.parseInt(value.get(1)) == Attribute.INT) {
+			if (!dataStorer.canParseInt(value.get(4))) {
+				System.out.println("ERROR: (in SQLExecutor.crossGetValue) (!dataStorer.canParseInt(value.get(4)))!");
+				return false;
+			}
+			intMap.put(value.get(2), Integer.parseInt(value.get(4)));
+		} else if (Integer.parseInt(value.get(1)) == Attribute.STRING) {
+			stringMap.put(value.get(2), value.get(4));
+		} else {
+			System.out.println("ERROR: (in SQLExecutor.crossGetValue) unknown Attribute type!");
+			return false;
+		}
+
+		return true;
+	}	
 
 	private ArrayList<String> crossSelectTuple() {
 		return null;
