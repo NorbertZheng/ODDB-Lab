@@ -23,7 +23,7 @@ public class test_SQLParser {
 	// CROSS_SELECT_TUPLE
 	// final static String expr = "SELECT  jpproduct->product->usproduct.sales ,  jpproduct->product->usproduct.name FROM jpproduct WHERE id=2;";
 	// CREATE_SELECT_DEPUTY_CLASS
-	final static String expr = "CREATE SELECTDEPUTY usproduct ( sales int ) SELECT name AS name, (price/7) AS usprice FROM product WHERE price>5000;";
+	// final static String expr = "CREATE SELECTDEPUTY usproduct ( sales int ) SELECT name AS name, (price/7) AS usprice FROM product WHERE price>5000;";
 	// final static String expr = "CREATE SELECTDEPUTY usproduct ( sales char ) SELECT name AS name, (price/7) AS usprice FROM product WHERE price>5000;";
 	// final static String expr = "CREATE SELECTDEPUTY jpproduct SELECT id AS id, (price*15) AS jpprice FROM product WHERE price<=7000;";
 	// INSERT_TUPLE
@@ -37,7 +37,7 @@ public class test_SQLParser {
 	// final static String expr = "DELETE FROM product WHERE name=\"mi\" ;";
 	// final static String expr = "DELETE FROM product WHERE name=\"ipad\";";
 	// UPDATE_TUPLE
-	// final static String expr = "UPDATE product SET price=4900 WHERE name=\"iphone\";";
+	final static String expr = "UPDATE product SET price=4900 WHERE name=\"iphone\";";
 	// final static String expr = "UPDATE usproduct SET sales=3000 WHERE name=\"ipad\";";
 	// final static String expr = "UPDATE usproduct SET sales=2000 WHERE name=\"mac\";";
 	// final static String expr = "UPDATE product SET price=4900 WHERE name=\"huawei\";";

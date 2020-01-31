@@ -709,10 +709,18 @@ public class SQLExecutor {
 		fakeOffset = this.vdisk.getOffset();
 
 		// insertTupleHelper
-		if (this.insertTupleHelper(classStruct, tuple, tupleBiPointer, fakeOffset).get(0).equals(SQLExecutor.EXECUTE_FAIL)) {
+		if (!this.insertTupleHelper(classStruct, tuple, tupleBiPointer, fakeOffset)) {
 			System.out.printf("ERROR: (in SQLExecutor.insertTuple) insertTupleHelper classStruct(%s) fail!\n", classStruct.name);
 			result.add(SQLExecutor.EXECUTE_FAIL);
 			result.add("ERROR: (in SQLExecutor.insertTuple) insertTupleHelper classStruct(" + classStruct.name + ") fail!");
+			return result;
+		}
+
+		// flush to vdisk
+		if (!this.vdisk.flushToDisk()) {
+			System.out.println("ERROR: (in SQLExecutor.insertTuple) this.vdisk flushToDisk fail!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.insertTuple) this.vdisk flushToDisk fail!");
 			return result;
 		}
 
@@ -722,12 +730,11 @@ public class SQLExecutor {
 		return result;
 	}
 
-	private ArrayList<String> insertTupleHelper(classStruct classStruct, ArrayList<String> tuple, ArrayList<String> tupleBiPointer, int fakeOffset) {
+	private boolean insertTupleHelper(classStruct classStruct, ArrayList<String> tuple, ArrayList<String> tupleBiPointer, int fakeOffset) {
 		int i, childrenFakeOffset;
 		classStruct childrenClassStruct;
 		whereNode conditionExpression;
 		ArrayList<String> childrenTuple, childrenTupleBiPointer;
-		ArrayList<String> result = new ArrayList<String>();
 
 		// check whether have children
 		if ((classStruct.children != null) && (classStruct.children.size() != 0)) {
@@ -736,9 +743,7 @@ public class SQLExecutor {
 				childrenClassStruct = this.vdisk.getClassStruct(classStruct.children.get(i));
 				if (childrenClassStruct == null) {
 					System.out.printf("ERROR: (in SQLExecutor.insertTupleHelper) this.vdisk get classStruct(%s) fail!\n", classStruct.children.get(i));
-					result.add(SQLExecutor.EXECUTE_FAIL);
-					result.add("ERROR: (in SQLExecutor.insertTupleHelper) this.vdisk get classStruct(" + classStruct.children.get(i) + ") fail!");
-					return result;
+					return false;
 				}
 				// get whereNode
 				try {
@@ -746,9 +751,7 @@ public class SQLExecutor {
 				} catch (ParseException ex) {
 					System.err.println(ex.getMessage());
 					System.out.printf("ERROR: (in SQLExecutor.insertTupleHelper) condition(%s) cannot be parserd!\n", childrenClassStruct.condition);
-					result.add(SQLExecutor.EXECUTE_FAIL);
-					result.add("ERROR: (in SQLExecutor.insertTupleHelper) condition(" + childrenClassStruct.condition + ") cannot be parserd!");
-					return result;
+					return false;
 				}
 				if (this.tupleSatisfied(conditionExpression, classStruct, tuple)) {
 					childrenTuple = this.initTuple(childrenClassStruct);
@@ -760,19 +763,15 @@ public class SQLExecutor {
 					this.vdisk.initial(childrenClassStruct.name);
 					if (!this.vdisk.insert(childrenClassStruct.name, childrenTuple)) {
 						System.out.printf("ERROR: (in SQLExecutor.insertTupleHelper) insert tuple to childrenClassStruct(%s) fail!\n", childrenClassStruct.name);
-						result.add(SQLExecutor.EXECUTE_FAIL);
-						result.add("ERROR: (in SQLExecutor.insertTupleHelper) insert tuple to childrenClassStruct(" + childrenClassStruct.name + ") fail!");
-						return result;
+						return false;
 					}
 					childrenFakeOffset = this.vdisk.getOffset();
 					// should match, suppose in order
 					tupleBiPointer.add(Integer.toString(childrenFakeOffset));
 					// handle children's children
-					if (this.insertTupleHelper(childrenClassStruct, childrenTuple, childrenTupleBiPointer, childrenFakeOffset).get(0).equals(SQLExecutor.EXECUTE_FAIL)) {
+					if (!this.insertTupleHelper(childrenClassStruct, childrenTuple, childrenTupleBiPointer, childrenFakeOffset)) {
 						System.out.printf("ERROR: (in SQLExecutor.insertTupleHelper) insertTupleHelper childrenClassStruct(%s) fail!\n", childrenClassStruct.name);
-						result.add(SQLExecutor.EXECUTE_FAIL);
-						result.add("ERROR: (in SQLExecutor.insertTupleHelper) insertTupleHelper childrenClassStruct(" + childrenClassStruct.name + ") fail!");
-						return result;
+						return false;
 					}
 				} else {
 					tupleBiPointer.add(Integer.toString(dataStorer.DEFAULT_BIPOINTER));
@@ -783,26 +782,446 @@ public class SQLExecutor {
 			this.vdisk.initial(classStruct.name, fakeOffset / dataStorer.PAGESIZE, fakeOffset % dataStorer.PAGESIZE);
 			if (!this.vdisk.update(tuple)) {
 				System.out.println("ERROR: (in SQLExecutor.insertTupleHelper) this.vdisk update tuple fail!");
-				result.add(SQLExecutor.EXECUTE_FAIL);
-				result.add("ERROR: (in SQLExecutor.insertTupleHelper) this.vdisk update tuple fail!");
-				return result;
+				return false;
 			} else {
 				// do nothing
 			}
 		}
 
+		return true;
+	}
+
+	private ArrayList<String> deleteTuple() {
+		int i, j, fakeOffset;
+		String className;
+		classStruct classStruct;
+		ArrayList<String> result = new ArrayList<String>(), whereIdentifier, tuple;
+
+		// check SQLNode
+		// check SQLNode.classNameList
+		if ((this.SQLInstruction.classNameList == null) || (this.SQLInstruction.classNameList.size() != 1)) {
+			System.out.println("ERROR: (in SQLExecutor.deleteTuple) ((this.SQLInstruction.classNameList == null) || (this.SQLInstruction.classNameList.size() != 1))!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.deleteTuple) SQLNode's classNameList can only hold one className!");
+			return result;
+		}
+		// check whether className exists
+		className = this.SQLInstruction.classNameList.get(0);
+		if (!this.vdisk.existClass(className)) {
+			System.out.printf("ERROR: (in SQLExecutor.deleteTuple) className(%s) do not exists!\n", className);
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.deleteTuple) className(" + className + ") do not exists!");
+			return result;
+		}
+		// get classStruct
+		classStruct = this.vdisk.getClassStruct(className);
+		// check SQLNode.attrList is null
+		if ((this.SQLInstruction.attrList != null) && (this.SQLInstruction.attrList.size() != 0)) {
+			System.out.println("ERROR: (in SQLExecutor.deleteTuple) ((this.SQLInstruction.attrList != null) && (this.SQLInstruction.attrList.size() != 0))!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.deleteTuple) SQLNode's attrList must be null!");
+			return result;
+		}
+		// check attrValueList
+		if ((this.SQLInstruction.attrValueList != null) && (this.SQLInstruction.attrValueList.size() != 0)) {
+			System.out.println("ERROR: (in SQLExecutor.deleteTuple) ((this.SQLInstruction.attrValueList != null) && (this.SQLInstruction.attrValueList.size() != 0))!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.deleteTuple) SQLNode's attrValueList must be null!");
+			return result;
+		}
+		// check SQLNode's where is not null
+		if (this.SQLInstruction.where == null) {
+			System.out.println("ERROR: (in SQLExecutor.deleteTuple) (this.SQLInstruction.where == null)!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.deleteTuple) SQLNode's where cannot be null!");
+			return result;
+		}
+
+		// check where'identifier is in classStruct's attrList
+		whereIdentifier = this.SQLInstruction.where.getAllIdentifier();
+		if (whereIdentifier == null) {
+			System.out.println("ERROR: (in SQLExecutor.deleteTuple) (whereIdentifier == null)!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.deleteTuple) (whereIdentifier == null)!");
+			return result;
+		}
+		for (i = 0; i < whereIdentifier.size(); i++) {
+			for (j = 0; j < classStruct.attrList.size(); j++) {
+				if (whereIdentifier.get(i).equals(classStruct.attrList.get(j).name)) {
+					break;
+				}
+			}
+			if (j == classStruct.attrList.size()) {
+				System.out.printf("ERROR: (in SQLExecutor.deleteTuple) identifier(%s) not in classStruct(%s)'s attrList!\n", whereIdentifier.get(i), classStruct.name);
+				result.add(SQLExecutor.EXECUTE_FAIL);
+				result.add("ERROR: (in SQLExecutor.deleteTuple) identifier(" + whereIdentifier.get(i) + ") not in classStruct(" + classStruct.name + ")'s attrList!");
+				return result;
+			}
+		}
+
+		// initial className
+		this.vdisk.initial(className);
+		while ((tuple = this.vdisk.Next()) != null) {
+			// get offset
+			fakeOffset = this.vdisk.getOffset();
+			if (this.tupleSatisfied(this.SQLInstruction.where, classStruct, tuple)) {
+				if (!this.deleteTupleHelper(classStruct, fakeOffset, dataStorer.decode(tuple.get(0)))) {
+					System.out.println("ERROR: (in SQLExecutor.deleteTuple) deleteTupleHelper(classStruct, fakeOffset) fail!");
+					result.add(SQLExecutor.EXECUTE_FAIL);
+					result.add("ERROR: (in SQLExecutor.deleteTuple) deleteTupleHelper(classStruct, fakeOffset) fail!");
+					return result;
+				}
+			}
+			// re-initial className with (fakeOffset + 1)
+			this.vdisk.initial(className, (fakeOffset + 1) / dataStorer.PAGESIZE, (fakeOffset + 1) % dataStorer.PAGESIZE);
+		}
+
+		// flush to vdisk
+		if (!this.vdisk.flushToDisk()) {
+			System.out.println("ERROR: (in SQLExecutor.deleteTuple) this.vdisk flushToDisk fail!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.deleteTuple) this.vdisk flushToDisk fail!");
+			return result;
+		}
+
 		result.add(SQLExecutor.EXECUTE_SUCCESS);
-		result.add("INFO: insert tuple(" + SQLExecutor.tuple2String(tuple) + ") successfully!");
+		result.add("INFO: delete tuple(" + this.SQLInstruction.where.toString() + ") successfully!");
 
 		return result;
 	}
 
-	private ArrayList<String> deleteTuple() {
-		return null;
+	private boolean deleteTupleHelper(classStruct classStruct, int fakeOffset, ArrayList<String> tupleBiPointer) {
+		int i, childrenFakeOffset;
+		classStruct childrenClassStruct;
+		ArrayList<String> childrenTuple;
+
+		// check params
+		if ((classStruct == null) || (tupleBiPointer == null) || (classStruct.children.size() + 1 != tupleBiPointer.size())) {
+			System.out.println("ERROR: (in SQLExecutor.deleteTupleHelper) ((classStruct == null) || (childrenTupleBiPointer == null) || (classStruct.children.size() + 1 != tupleBiPointer.size()))!");
+			return false;
+		}
+
+		// initial classStruct
+		this.vdisk.initial(classStruct.name, fakeOffset / dataStorer.PAGESIZE, fakeOffset % dataStorer.PAGESIZE);
+		// delete One Tuple
+		if (!this.vdisk.delete()) {
+			System.out.println("ERROR: (in SQLExecutor.deleteTupleHelper) this.vdisk delete fail!");
+			return false;
+		}
+		// delete children tuple
+		for (i = 0; i < classStruct.children.size(); i++) {
+			childrenClassStruct = this.vdisk.getClassStruct(classStruct.children.get(i));
+			if (childrenClassStruct == null) {
+				System.out.printf("ERROR: (in SQLExecutor.deleteTupleHelper) this.vdisk getClassStruct(%s) fail!\n", classStruct.children.get(i));
+				return false;
+			}
+			if (!dataStorer.canParseInt(tupleBiPointer.get(i + 1))) {
+				System.out.printf("ERROR: (in SQLExecutor.deleteTupleHelper) biPointer(%s) cannot be parsed to INT!\n", tupleBiPointer.get(i + 1));
+				return false;
+			}
+			childrenFakeOffset = Integer.parseInt(tupleBiPointer.get(i + 1));
+			if (childrenFakeOffset != dataStorer.DEFAULT_BIPOINTER) {
+				// valid biPointer
+				// initial childrenClassStruct
+				this.vdisk.initial(childrenClassStruct.name, childrenFakeOffset / dataStorer.PAGESIZE, childrenFakeOffset % dataStorer.PAGESIZE);
+				if ((childrenTuple = this.vdisk.Next()) == null) {
+					System.out.printf("ERROR: (in SQLExecutor.deleteTupleHelper) this.vdisk Next(%s) fail!\n", childrenClassStruct.name);
+					return false;
+				}
+				if (!this.deleteTupleHelper(childrenClassStruct, childrenFakeOffset, dataStorer.decode(childrenTuple.get(0)))) {
+					System.out.printf("ERROR: (in SQLExecutor.deleteTupleHelper) deleteTupleHelper(%s) fail!\n", childrenClassStruct.name);
+					return false;
+				}
+			}
+		}
+
+		// re-initial classStruct
+		this.vdisk.initial(classStruct.name, fakeOffset / dataStorer.PAGESIZE, fakeOffset % dataStorer.PAGESIZE);
+
+		return true;
 	}
+			
 
 	private ArrayList<String> updateTuple() {
-		return null;
+		int i, j, fakeOffset, childrenFakeOffset;
+		String className;
+		Attribute attribute;
+		classStruct classStruct, childrenClassStruct;
+		whereNode conditionExpression;
+		ArrayList<Attribute> realAttributeList;
+		ArrayList<String> whereIdentifier, tuple, tupleBiPointer, childrenTuple, childrenTupleBiPointer;
+		ArrayList<String> result = new ArrayList<String>();
+
+		// check SQLNode
+		// check SQLNode.classNameList
+		if ((this.SQLInstruction.classNameList == null) || (this.SQLInstruction.classNameList.size() != 1)) {
+			System.out.println("ERROR: (in SQLExecutor.updateTuple) ((this.SQLInstruction.classNameList == null) || (this.SQLInstruction.classNameList.size() != 1))!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.updateTuple) SQLNode's classNameList can only hold one className!");
+			return result;
+		}
+		// check whether className exists
+		className = this.SQLInstruction.classNameList.get(0);
+		if (!this.vdisk.existClass(className)) {
+			System.out.printf("ERROR: (in SQLExecutor.updateTuple) className(%s) do not exists!\n", className);
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.updateTuple) className(" + className + ") do not exists!");
+			return result;
+		}
+		// get classStruct
+		classStruct = this.vdisk.getClassStruct(className);
+		// check SQLNode.attrList not null
+		if ((this.SQLInstruction.attrList == null) || (this.SQLInstruction.attrList.size() == 0)) {
+			System.out.println("ERROR: (in SQLExecutor.updateTuple) ((this.SQLInstruction.attrList == null) || (this.SQLInstruction.attrList.size() == 0))!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.updateTuple) SQLNode's attrList cannot be null!");
+			return result;
+		}
+		// check SQLNode.attrList is not null
+		if ((classStruct.attrList == null) || (classStruct.attrList.size() == 0)) {
+			System.out.println("ERROR: (in SQLExecutor.updateTuple) ((classStruct.attrList == null) || (classStruct.attrList.size() == 0))!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.updateTuple) ((classStruct.attrList == null) || (classStruct.attrList.size() == 0))!");
+			return result;
+		}
+		realAttributeList = this.vdisk.getRealAttributeList(classStruct);
+		// check SQLNode.attrList's attribute valid
+		for (i = 0; i < this.SQLInstruction.attrList.size(); i++) {
+			attribute = this.SQLInstruction.attrList.get(i);
+			if ((attribute.name == null) || attribute.name.equals("")) {
+				System.out.printf("ERROR: (in SQLExecutor.updateTuple) attribute(NO.%d) ((attribute.name == null) || attribute.name.equals(\"\"))!\n", i);
+				result.add(SQLExecutor.EXECUTE_FAIL);
+				result.add("ERROR: (in SQLExecutor.updateTuple) attribute(NO." + Integer.toString(i) + ")'s name cannot be null!");
+				return result;
+			}
+			// check attribute.expression is null
+			if ((attribute.expression != null) && (!attribute.expression.equals(""))) {
+				System.out.printf("ERROR: (in SQLExecutor.updateTuple) attribute(NO.%d) ((attribute.expression != null) && (!attribute.expression.equals(\"\")))!\n", i);
+				result.add(SQLExecutor.EXECUTE_FAIL);
+				result.add("ERROR: (in SQLExecutor.updateTuple) attribute(NO." + Integer.toString(i) + ")'s expression must be null!");
+				return result;
+			}
+			// check is in realAttributeList
+			for (j = 0; j < realAttributeList.size(); j++) {
+				if (attribute.name.equals(realAttributeList.get(j).name)) {
+					break;
+				}
+			}
+			if (j == realAttributeList.size()) {
+				System.out.printf("ERROR: (in SQLExecutor.updateTuple) attrName(%s) not in realAttributeList!\n", attribute.name);
+				result.add(SQLExecutor.EXECUTE_FAIL);
+				result.add("ERROR: (in SQLExecutor.updateTuple) attrName(" + attribute.name + ") not in realAttributeList!");
+				return result;
+			}
+			// check attrList is a set
+			for (j = i + 1; j < this.SQLInstruction.attrList.size(); j++) {
+				if (attribute.name.equals(this.SQLInstruction.attrList.get(j).name)) {
+					System.out.printf("ERROR: (in SQLExecutor.updateTuple) attribute(NO.%d)'name is not unique!\n", i);
+					result.add(SQLExecutor.EXECUTE_FAIL);
+					result.add("ERROR: (in SQLExecutor.updateTuple) attribute(NO." + Integer.toString(i) + ")'name is not unique!");
+					return result;
+				}
+			}
+			// check attribute.className not null
+			if ((attribute.className == null) || attribute.className.equals("")) {
+				System.out.printf("ERROR: (in SQLExecutor.updateTuple) attribute(NO.%d) ((attribute.className == null) || attribute.className.equals(\"\"))!\n", i);
+				result.add(SQLExecutor.EXECUTE_FAIL);
+				result.add("ERROR: (in SQLExecutor.updateTuple) attribute(NO." + Integer.toString(i) + ")'s className cannot be null!");
+				return result;
+			}
+		}
+		// check attrValueList not null
+		if ((this.SQLInstruction.attrValueList == null) || (this.SQLInstruction.attrValueList.size() == 0)) {
+			System.out.println("ERROR: (in SQLExecutor.updateTuple) ((this.SQLInstruction.attrValueList == null) || (this.SQLInstruction.attrValueList.size() == 0))!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.updateTuple) SQLNode's attrValueList cannot be null!");
+			return result;
+		}
+		// check attrValueList.size() == attrList.size()
+		if (this.SQLInstruction.attrValueList.size() != this.SQLInstruction.attrList.size()) {
+			System.out.println("ERROR: (in SQLExecutor.updateTuple) (this.SQLInstruction.attrValueList.size() != this.SQLInstruction.attrList.size())!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.updateTuple) SQLNode's attrValueList.size() != attrList.size()!");
+			return result;
+		}
+		// check attrValueList's element type
+		for (i = 0; i < realAttributeList.size(); i++) {
+			attribute = realAttributeList.get(i);
+			for (j = 0; j < this.SQLInstruction.attrList.size(); j++) {
+				if (attribute.name.equals(this.SQLInstruction.attrList.get(j).name)) {
+					// check type
+					if (attribute.type == Attribute.INT) {
+						if (!dataStorer.canParseInt(this.SQLInstruction.attrValueList.get(j))) {
+							System.out.printf("ERROR: (in SQLExecutor.updateTuple) attrValue(%s) cannot be parsed into INT!\n", this.SQLInstruction.attrValueList.get(j));
+							result.add(SQLExecutor.EXECUTE_FAIL);
+							result.add("ERROR: (in SQLExecutor.updateTuple) attrValue(" + this.SQLInstruction.attrValueList.get(j) + ") cannot be parsed into INT!");
+							return result;
+						}
+					} else if (attribute.type == Attribute.STRING) {
+						// do nothing
+					} else {
+						System.out.println("ERROR: (in SQLExecutor.updateTuple) unknown type!");
+						result.add(SQLExecutor.EXECUTE_FAIL);
+						result.add("ERROR: (in SQLExecutor.updateTuple) unknown type!");
+						return result;
+					}
+					break;
+				}
+			}
+		}
+		// check SQLNode's where is not null
+		if (this.SQLInstruction.where == null) {
+			System.out.println("ERROR: (in SQLExecutor.updateTuple) (this.SQLInstruction.where == null)!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.updateTuple) SQLNode's where cannot be null!");
+			return result;
+		}
+
+		// check where'identifier is in classStruct's attrList
+		whereIdentifier = this.SQLInstruction.where.getAllIdentifier();
+		if (whereIdentifier == null) {
+			System.out.println("ERROR: (in SQLExecutor.updateTuple) (whereIdentifier == null)!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.updateTuple) (whereIdentifier == null)!");
+			return result;
+		}
+		for (i = 0; i < whereIdentifier.size(); i++) {
+			for (j = 0; j < classStruct.attrList.size(); j++) {
+				if (whereIdentifier.get(i).equals(classStruct.attrList.get(j).name)) {
+					break;
+				}
+			}
+			if (j == classStruct.attrList.size()) {
+				System.out.printf("ERROR: (in SQLExecutor.updateTuple) identifier(%s) not in classStruct(%s)'s attrList!\n", whereIdentifier.get(i), classStruct.name);
+				result.add(SQLExecutor.EXECUTE_FAIL);
+				result.add("ERROR: (in SQLExecutor.updateTuple) identifier(" + whereIdentifier.get(i) + ") not in classStruct(" + classStruct.name + ")'s attrList!");
+				return result;
+			}
+		}
+
+		// execute update
+		// initial classStruct
+		this.vdisk.initial(classStruct.name);
+		while ((tuple = this.vdisk.Next()) != null) {
+			fakeOffset = this.vdisk.getOffset();
+			if (this.tupleSatisfied(this.SQLInstruction.where, classStruct, tuple)) {
+				// set tuple
+				for (i = 0; i < realAttributeList.size(); i++) {
+					attribute = realAttributeList.get(i);
+					for (j = 0; j < this.SQLInstruction.attrList.size(); j++) {
+						if (attribute.name.equals(this.SQLInstruction.attrList.get(j).name)) {
+							// set tuple
+							if (attribute.type == Attribute.INT) {
+								tuple.set(i + 1, this.SQLInstruction.attrValueList.get(j));
+							} else if (attribute.type == Attribute.STRING) {
+								tuple.set(i + 1, this.SQLInstruction.attrValueList.get(j));
+							}
+							break;
+						}
+					}
+				}
+				// check children
+				tupleBiPointer = dataStorer.decode(tuple.get(0));
+				for (i = 0; i < classStruct.children.size(); i++) {
+					childrenClassStruct = this.vdisk.getClassStruct(classStruct.children.get(i));
+					if (childrenClassStruct == null) {
+						System.out.printf("ERROR: (in SQLExecutor.updateTuple) this.vdisk get childrenClassStruct(%s) fail!\n", classStruct.children.get(i));
+						result.add(SQLExecutor.EXECUTE_FAIL);
+						result.add("ERROR: (in SQLExecutor.updateTuple) this.vdisk get childrenClassStruct(" + classStruct.children.get(i) + ") fail!");
+						return result;
+					}
+					try {
+						conditionExpression = booleanParser.evaluate(childrenClassStruct.condition);
+					} catch (ParseException ex) {
+						System.err.println(ex.getMessage());
+						result.add(SQLExecutor.EXECUTE_FAIL);
+						result.add("ERROR: (in SQLExecutor.updateTuple) childrenClassStruct(" + childrenClassStruct.name + ")'s condition(" + childrenClassStruct.condition + ") cannot be parsed!");
+						return result;
+					}
+					if (this.tupleSatisfied(conditionExpression, classStruct, tuple)) {
+						// must exist childrenTuple & biPointer
+						if (tupleBiPointer.get(i + 1).equals(Integer.toString(dataStorer.DEFAULT_BIPOINTER))) {
+							// do not exist, need insert
+							childrenTuple = this.initTuple(childrenClassStruct);
+							childrenTupleBiPointer = new ArrayList<String>();
+							childrenTupleBiPointer.add(Integer.toString(fakeOffset));
+							childrenTuple.set(0, dataStorer.encode(childrenTupleBiPointer));
+							// insert childrenTuple
+							// initial childrenClassStruct
+							this.vdisk.initial(childrenClassStruct.name);
+							if (!this.vdisk.insert(childrenClassStruct.name, childrenTuple)) {
+								System.out.printf("ERROR: (in SQLExecutor.updateTuple) this.vdisk insert tuple into childrenClassStruct(%s) fail!\n", childrenClassStruct.name);
+								result.add(SQLExecutor.EXECUTE_FAIL);
+								result.add("ERROR: (in SQLExecutor.updateTuple) this.vdisk insert tuple into childrenClassStruct(" + childrenClassStruct.name + ") fail!");
+								return result;
+							}
+							childrenFakeOffset = this.vdisk.getOffset();
+							// call insertTupleHelper
+							if (!this.insertTupleHelper(childrenClassStruct, childrenTuple, childrenTupleBiPointer, childrenFakeOffset)) {
+								System.out.printf("ERROR: (in SQLExecutor.updateTuple) insertTupleHelper childrenClassStruct(%s) fail!\n", childrenClassStruct.name);
+								result.add(SQLExecutor.EXECUTE_FAIL);
+								result.add("ERROR: (in SQLExecutor.updateTuple) insertTupleHelper childrenClassStruct(" + childrenClassStruct.name + ") fail!");
+								return result;
+							}
+							// set childrenFakeOffset into tupleBiPointer
+							tupleBiPointer.set(i + 1, Integer.toString(childrenFakeOffset));
+						}
+					} else {
+						// must deleted
+						if (!tupleBiPointer.get(i + 1).equals(Integer.toString(dataStorer.DEFAULT_BIPOINTER))) {
+							if (!dataStorer.canParseInt(tupleBiPointer.get(i + 1))) {
+								System.out.printf("ERROR: (in SQLExecutor.updateTuple) biPointer(%s) cannot parse into INT!\n", tupleBiPointer.get(i + 1));
+								result.add(SQLExecutor.EXECUTE_FAIL);
+								result.add("ERROR: (in SQLExecutor.updateTuple) biPointer(" + tupleBiPointer.get(i + 1) + ") cannot parse into INT!");
+								return result;
+							}
+							childrenFakeOffset = Integer.parseInt(tupleBiPointer.get(i + 1));
+							// initial childrenClassStruct
+							this.vdisk.initial(childrenClassStruct.name, childrenFakeOffset / dataStorer.PAGESIZE, childrenFakeOffset % dataStorer.PAGESIZE);
+							// get childrenTuple
+							if ((childrenTuple = this.vdisk.Next()) == null) {
+								System.out.printf("ERROR: (in SQLExecutor.updateTuple) this.vdisk get childrenClassStruct(%s) next is null!\n", childrenClassStruct.name);
+								result.add(SQLExecutor.EXECUTE_FAIL);
+								result.add("ERROR: (in SQLExecutor.updateTuple) this.vdisk get childrenClassStruct(" + childrenClassStruct.name + ") next is null!");
+								return result;
+							}
+							if (!this.deleteTupleHelper(childrenClassStruct, childrenFakeOffset, childrenTuple)) {
+								System.out.printf("ERROR: (in SQLExecutor.updateTuple) deleteTupleHelper childrenClassStruct(%s) fail!\n", childrenClassStruct.name);
+								result.add(SQLExecutor.EXECUTE_FAIL);
+								result.add("ERROR: (in SQLExecutor.updateTuple) deleteTupleHelper childrenClassStruct(" + childrenClassStruct.name + ") fail!");
+								return result;
+							}
+							// set DEFAULT_BIPOINTER into tupleBiPointer
+							tupleBiPointer.set(i + 1, Integer.toString(dataStorer.DEFAULT_BIPOINTER));
+						}
+					}
+				}
+				// re-initial classStruct with fakeOffset
+				this.vdisk.initial(classStruct.name, fakeOffset / dataStorer.PAGESIZE, fakeOffset % dataStorer.PAGESIZE);
+				// update tuple
+				if (!this.vdisk.update(tuple)) {
+					System.out.printf("ERROR: (in SQLExecutor.updateTuple) this.vdisk update(%s) fail!\n", SQLExecutor.tuple2String(tuple));
+					result.add(SQLExecutor.EXECUTE_FAIL);
+					result.add("ERROR: (in SQLExecutor.updateTuple) this.vdisk update(" + SQLExecutor.tuple2String(tuple) + ") fail!");
+					return result;
+				}
+			}
+			// re-initial classStruct with (fakeOffset + 1)
+			this.vdisk.initial(classStruct.name, (fakeOffset + 1) / dataStorer.PAGESIZE, (fakeOffset + 1) % dataStorer.PAGESIZE);
+		}
+
+		// flush to vdisk
+		if (!this.vdisk.flushToDisk()) {
+			System.out.println("ERROR: (in SQLExecutor.updateTuple) this.vdisk flushToDisk fail!");
+			result.add(SQLExecutor.EXECUTE_FAIL);
+			result.add("ERROR: (in SQLExecutor.updateTuple) this.vdisk flushToDisk fail!");
+			return result;
+		}
+
+		result.add(SQLExecutor.EXECUTE_SUCCESS);
+		result.add("INFO: update tuple(" + this.SQLInstruction.where.toString() + ") successfully!");
+
+		return result;
 	}
 
 	private ArrayList<String> selectTuple() {
