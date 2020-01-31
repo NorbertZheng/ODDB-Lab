@@ -17,7 +17,7 @@ public class virtualDisk {
 	final static int N_OF_CONFIG_BLOCK = 1, N_BUFFERLINE = 8;
 	final static String charSet = "utf-8";
 
-	public final static int PAGESIZE = 32;
+	public final static int PAGESIZE = 32, DEFAULT_BIPOINTER = -1;
 
 	private String baseLocation;		// the location of the whole project
 	private String configLocation;		// the location of config file
@@ -2903,7 +2903,7 @@ public class virtualDisk {
 			if (tempBiPointerTable.classId == classId) {
 				// check deputyClassId
 				for (j = 0; j < childrenClassIdList.size(); j++) {
-					if (tempBiPointerTable.deputyClassId == childrenClassIdList.get(i).intValue()) {
+					if (tempBiPointerTable.deputyClassId == childrenClassIdList.get(j).intValue()) {
 						break;
 					}
 				}
@@ -3004,7 +3004,7 @@ public class virtualDisk {
 			}
 			deputyObjectId = Integer.parseInt(tupleBiPointerList.get(i));
 			// get children classId
-			childrenClassId = this.getClassId(classStruct.children.get(i));
+			childrenClassId = this.getClassId(classStruct.children.get(i - 1));
 			for (j = 0; j < this.systemBiPointerTable.size(); j++) {
 				tempBiPointerTable = this.systemBiPointerTable.get(j);
 				if ((tempBiPointerTable.classId == classId) && (tempBiPointerTable.objectId == objectId) && (tempBiPointerTable.deputyClassId == childrenClassId)) {
