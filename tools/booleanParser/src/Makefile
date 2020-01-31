@@ -1,6 +1,6 @@
 src = booleanExecutor
-dep = whereNode.java ../bin/booleanParser.class
-srcClassPath = ./:../bin/
+dep = ../../../kernel/SQLParser/src/whereNode.java ../bin/booleanParser.class
+srcClassPath = ./:../bin/:../../../kernel/SQLParser/src/
 destClassPath = ./
 
 all: $(destClassPath)$(src).class

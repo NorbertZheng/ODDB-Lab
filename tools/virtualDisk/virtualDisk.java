@@ -2926,7 +2926,7 @@ public class virtualDisk {
 	 *  flag(boolean)				: whether update biPointerTable successfully
 	 */
 	private boolean updateBiPointerTable(classStruct classStruct, String tupleBiPointer) {
-		int i, j, classId, childrenClassId, objectId, deputyObjectId;
+		int i, j, parentClassId, parentObjectId, classId, childrenClassId, objectId, deputyObjectId;
 		ArrayList<Integer> childrenClassIdList;
 		ArrayList<String> tupleBiPointerList;
 		biPointerTable tempBiPointerTable;
@@ -2942,8 +2942,8 @@ public class virtualDisk {
 			return false;
 		}
 		tupleBiPointerList = virtualDisk.decode(tupleBiPointer);
-		if (tupleBiPointerList.size() != classStruct.children.size()) {
-			System.out.println("ERROR: (in virtualDisk.updateBiPointerTable) (tupleBiPointerList.size() != classStruct.children.size())!");
+		if (tupleBiPointerList.size() - 1 != classStruct.children.size()) {
+			System.out.println("ERROR: (in virtualDisk.updateBiPointerTable) (tupleBiPointerList.size() - 1 != classStruct.children.size())!");
 			return false;
 		}
 		// get all childrenClassIdList
@@ -2964,9 +2964,40 @@ public class virtualDisk {
 			System.out.println("ERROR: (in virtualDisk.updateBiPointerTable) remove all deleted children biPointer fail!");
 			return false;
 		}
-		// update rest children biPointer && insert new children biPointer
+		// update rest biPointer && insert new children biPointer
 		objectId = (this.fakeBlockNum * virtualDisk.PAGESIZE) + this.fakeBlockOffset;
-		for (i = 0; i < tupleBiPointerList.size(); i++) {
+		// update biPointer point to parent
+		// check whether parent exists
+		if ((classStruct.parent != null) && (!classStruct.parent.equals(""))) {
+			// parent exists
+			parentClassId = this.getClassId(classStruct.parent);
+			if (parentClassId == virtualDisk.MAX_INTEGER) {
+				System.out.println("ERROR: (in virtualDisk.updateBiPointerTable) (parentClassId == virtualDisk.MAX_INTEGER)!");
+				return false;
+			}
+			if (!virtualDisk.canParseInt(tupleBiPointerList.get(0))) {
+				System.out.printf("ERROR: (in virtualDisk.updateBiPointerTable) cannot parse String(%s) to int!\n", tupleBiPointerList.get(0));
+				return false;
+			}
+			parentObjectId = Integer.parseInt(tupleBiPointerList.get(0));
+			for (j = 0; j < this.systemBiPointerTable.size(); j++) {
+				tempBiPointerTable = this.systemBiPointerTable.get(j);
+				if ((tempBiPointerTable.classId == parentClassId) && (tempBiPointerTable.objectId == parentObjectId) && (tempBiPointerTable.deputyClassId == classId)) {
+					// only need to update deputyObjectId
+					tempBiPointerTable.deputyObjectId = objectId;
+					break;
+				}
+			}
+			// no match, create a new biPointerTable
+			tempBiPointerTable = new biPointerTable();
+			tempBiPointerTable.classId = parentClassId;
+			tempBiPointerTable.objectId = parentObjectId;
+			tempBiPointerTable.deputyClassId = classId;
+			tempBiPointerTable.deputyObjectId = objectId;
+
+			this.systemBiPointerTable.add(tempBiPointerTable);
+		}
+		for (i = 1; i < tupleBiPointerList.size(); i++) {
 			if (!virtualDisk.canParseInt(tupleBiPointerList.get(i))) {
 				System.out.printf("ERROR: (in virtualDisk.updateBiPointerTable) cannot parse String(%s) to int!\n", tupleBiPointerList.get(i));
 				return false;
@@ -3188,14 +3219,20 @@ public class virtualDisk {
 
 		// remove all deleted children biPointer
 		if (!this.removeDeletedChildrenBiPointerTable(classStruct)) {
-			System.out.println("ERROR: (in virtualDisk.updateBiPointerTable) remove all deleted children biPointer fail!");
+			System.out.println("ERROR: (in virtualDisk.deleteBiPointerTable) remove all deleted children biPointer fail!");
 			return false;
 		}
 
 		// remove deleted object's biPointer
 		for (int i = 0; i < this.systemBiPointerTable.size(); i++) {
 			tempBiPointerTable = this.systemBiPointerTable.get(i);
+			// remove biPointer point to son
 			if ((tempBiPointerTable.classId == classId) && (tempBiPointerTable.objectId == objectId)) {
+				this.systemBiPointerTable.remove(i);
+				// no break
+			}
+			// remove biPointer point to parent
+			if ((tempBiPointerTable.deputyClassId == classId) && (tempBiPointerTable.deputyObjectId == objectId)) {
 				this.systemBiPointerTable.remove(i);
 				// no break
 			}

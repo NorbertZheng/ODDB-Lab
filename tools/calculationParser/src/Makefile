@@ -1,6 +1,6 @@
 src = calculationExecutor
-dep = calculationNode.java ../bin/calculationParser.class
-srcClassPath = ./:../bin/
+dep = ../../../kernel/SQLParser/src/calculationNode.java ../bin/calculationParser.class
+srcClassPath = ./:../bin/:../../../kernel/SQLParser/src/
 destClassPath = ./
 
 all: $(destClassPath)$(src).class

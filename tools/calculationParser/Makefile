@@ -1,11 +1,11 @@
 src = calculationParser
-dep = calculationNode.java
-srcClassPath = ./:./src/
+dep = ../../kernel/SQLParser/src/calculationNode.java
+srcClassPath = ./:./src/:../../kernel/SQLParser/src/
 destClassPath = ./bin/
 
 all: $(destClassPath)$(src).class
 
-$(destClassPath)$(src).class: $(src).java $(destClassPath)
+$(destClassPath)$(src).class: $(src).java $(destClassPath) $(dep)
 	javac -cp $(srcClassPath) $(src).java -d $(destClassPath)
 
 $(src).java: $(src).jj
@@ -17,6 +17,7 @@ $(destClassPath):
 clean:
 	rm -rf *.java
 	rm -rf $(destClassPath)
+	cd ./src && make clean
 
 run:
 	make all

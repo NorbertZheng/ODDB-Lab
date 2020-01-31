@@ -1,6 +1,6 @@
 src = booleanParser
 dep = whereNode.java
-srcClassPath = ./:./src/
+srcClassPath = ./:./src/:../../kernel/SQLParser/src/
 destClassPath = ./bin/
 
 all: $(destClassPath)$(src).class
@@ -17,6 +17,7 @@ $(destClassPath):
 clean:
 	rm -rf *.java
 	rm -rf $(destClassPath)
+	cd ./src && make clean
 
 run:
 	make all
