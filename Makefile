@@ -18,6 +18,13 @@ $(destClassPath)$(src).class: $(src).java $(destClassPath) $(dep)
 $(destClassPath):
 	mkdir $(destClassPath)
 
+cleanSQLExecutor:
+	# rm -rf $(destClassPath)
+	rm -rf *.class
+	cd ./kernel/SQLExecutor/ && make clean
+	cd ./kernel/dataStorer/ && make clean
+	cd ./tools/virtualDisk/ && make clean
+
 clean:
 	# rm -rf $(destClassPath)
 	rm -rf *.class
