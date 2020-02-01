@@ -1494,9 +1494,13 @@ public class virtualDisk {
 		byte[] temp, data, left, right;
 
 		if ((lengthList.size() != typeList.size()) || (lengthList.size() != src.size()) || (src.size() != typeList.size())) {
+			System.out.printf("ERROR: (in virtualDisk.writeOneTulpe) ((lengthList.size() != typeList.size()) || (lengthList.size() != src.size()) || (src.size() != typeList.size()))(%d, %d, %d)!\n", lengthList.size(), typeList.size(), src.size());
 			return false;
 		} else if (src == null) {
+			System.out.println("ERROR: (in virtualDisk.writeOneTulpe) (src == null)!");
 			return false;
+		} else if ((lengthList.size() == 0) && (typeList.size() == 0) && (src.size() == 0)) {
+			return true;
 		} else {
 			// get one tuple data
 			for (int i = 0; i < lengthList.size(); i++) {
@@ -1509,6 +1513,7 @@ public class virtualDisk {
 					// clear up temp
 					clearByteArray(temp);
 					if (!virtualDisk.byteArrayCopy(temp, virtualDisk.string2ByteArray(src.get(i)), 0)) {
+							System.out.println("ERROR: (in virtualDisk.writeOneTulpe) (!virtualDisk.byteArrayCopy(temp, virtualDisk.string2ByteArray(src.get(i)), 0))!");
 							return false;
 					}
 				} else if (typeList.get(i).intValue() == virtualDisk.ATTRTYPE_INTEGER) {
@@ -1519,9 +1524,11 @@ public class virtualDisk {
 						temp = virtualDisk.int2ByteArray(Integer.parseInt(src.get(i)));
 					}
 				} else {
+					System.out.println("ERROR: (in virtualDisk.writeOneTulpe) unkown Attribute type!");
 					return false;
 				}
 				if (!virtualDisk.byteArrayCopy(data, temp, count)) {
+					System.out.println("ERROR: (in virtualDisk.writeOneTulpe) !");
 					return false;
 				}
 				count += lengthList.get(i).intValue();
@@ -1532,9 +1539,11 @@ public class virtualDisk {
 				right = new byte[length + offset - this.blockSize];
 
 				if (!byteArrayIntercept(left, data, 0)) {
+					System.out.println("ERROR: (in virtualDisk.writeOneTulpe) (!byteArrayIntercept(left, data, 0))!");
 					return false;
 				}
 				if (!byteArrayIntercept(right, data, this.blockSize - offset)) {
+					System.out.println("ERROR: (in virtualDisk.writeOneTulpe) (!byteArrayIntercept(right, data, this.blockSize - offset))!");
 					return false;
 				}
 				// need read second block
@@ -1542,23 +1551,28 @@ public class virtualDisk {
 				if ((n_nextBlock == n_block) || (n_nextBlock == virtualDisk.FREE_BLOCK_FLAG) || (n_nextBlock == virtualDisk.CONFIG_BLOCK_FLAG)) {
 					n_nextBlock = this.getFreeBlock();
 					if (n_nextBlock == virtualDisk.CONFIG_BLOCK_FLAG) {
+						System.out.println("ERROR: (in virtualDisk.writeOneTulpe) (n_nextBlock == virtualDisk.CONFIG_BLOCK_FLAG)!");
 						return false;
 					}
 					if (!this.setNextBlock(n_block, n_nextBlock)) {
+						System.out.println("ERROR: (in virtualDisk.writeOneTulpe) (!this.setNextBlock(n_block, n_nextBlock))!");
 						return false;
 					}
 				}
 				// write to vdisk
 				if (!this.write(n_block, offset, left, left.length)) {
+					System.out.println("ERROR: (in virtualDisk.writeOneTulpe) (!this.write(n_block, offset, left, left.length))!");
 					return false;
 				}
 				if (!this.write(n_nextBlock, 0, right, right.length)) {
+					System.out.println("ERROR: (in virtualDisk.writeOneTulpe) (!this.write(n_nextBlock, 0, right, right.length))!");
 					return false;
 				}
 
 				return true;
 			} else {
 				if (!this.write(n_block, offset, data, data.length)) {
+					System.out.println("ERROR: (in virtualDisk.writeOneTulpe) (!this.write(n_block, offset, data, data.length))!");
 					return false;
 				}
 
@@ -2078,9 +2092,9 @@ public class virtualDisk {
 		for (int i = 0; i < lengthList.size(); i++) {
 			tupleLength += lengthList.get(i).intValue();
 		}
-		if (tupleLength == 0) {
+		/*if (tupleLength == 0) {
 			return virtualDisk.MAX_INTEGER;
-		}
+		}*/
 		// calculate realBlockOffset
 		realBlockOffset = (((this.fakeBlockNum * virtualDisk.PAGESIZE) + this.fakeBlockOffset) * tupleLength) % this.blockSize;
 
@@ -2107,9 +2121,9 @@ public class virtualDisk {
 		for (int i = 0; i < lengthList.size(); i++) {
 			tupleLength += lengthList.get(i).intValue();
 		}
-		if (tupleLength == 0) {
+		/*if (tupleLength == 0) {
 			return virtualDisk.MAX_INTEGER;
-		}
+		}*/
 		// calculate realBlockNum
 		realBlockNum = (((this.fakeBlockNum * virtualDisk.PAGESIZE) + this.fakeBlockOffset) * tupleLength) / this.blockSize;
 		// get start n_block
@@ -2254,6 +2268,7 @@ public class virtualDisk {
 	 */
 	private boolean saveClassStruct(String className, classStruct classStruct) {
 		byte[] data;
+		ArrayList<Attribute> realAttributeList;
 		int classId, selectClassId, attrId, deputyRuleId, n_block, n_nextBlock, i;
 		ArrayList<String> temp;
 		classTable tempClassTable;
@@ -2351,40 +2366,44 @@ public class virtualDisk {
 				this.systemDeputyRuleTable.add(tempDeputyRuleTable);
 			}
 		}
-		// set object table
-		temp = new ArrayList<String>();
+		/*// if only have v-attr, no need for objectTable
+		realAttributeList = this.getRealAttributeList(classStruct);
+		if ((realAttributeList != null) && (realAttributeList.size() > 0)) {*/
+			// set object table
+			temp = new ArrayList<String>();
 
-		temp.add(Integer.toString(classId));
-		temp.add(Integer.toString(0));
-		n_block = this.getFreeBlock();
-		if (n_block == virtualDisk.CONFIG_BLOCK_FLAG) {
-			return false;
-		} else {
-			if (!this.setNextBlock(n_block, n_block)) {
+			temp.add(Integer.toString(classId));
+			temp.add(Integer.toString(0));
+			n_block = this.getFreeBlock();
+			if (n_block == virtualDisk.CONFIG_BLOCK_FLAG) {
 				return false;
 			} else {
-				temp.add(Integer.toString(n_block));
-				// set class config page
-				data = new byte[this.blockSize];
-				virtualDisk.clearByteArray(data);
-				if (!this.write(n_block, 0, data, this.blockSize)) {
-					System.err.println("ERROR: (in virtualDisk.saveClassStruct) write fail!");
-					return false;
-				}
-				n_nextBlock = this.getFreeBlock();
-				if (n_nextBlock == virtualDisk.CONFIG_BLOCK_FLAG) {
+				if (!this.setNextBlock(n_block, n_block)) {
 					return false;
 				} else {
-					if (!this.setNextBlock(n_block, n_nextBlock)) {
+					temp.add(Integer.toString(n_block));
+					// set class config page
+					data = new byte[this.blockSize];
+					virtualDisk.clearByteArray(data);
+					if (!this.write(n_block, 0, data, this.blockSize)) {
+						System.err.println("ERROR: (in virtualDisk.saveClassStruct) write fail!");
 						return false;
+					}
+					n_nextBlock = this.getFreeBlock();
+					if (n_nextBlock == virtualDisk.CONFIG_BLOCK_FLAG) {
+						return false;
+					} else {
+						if (!this.setNextBlock(n_block, n_nextBlock)) {
+							return false;
+						}
 					}
 				}
 			}
-		}
-		temp.add(Integer.toString(0));
-		// init objectTable
-		tempObjectTable = new objectTable(temp);
-		this.systemObjectTable.add(tempObjectTable);
+			temp.add(Integer.toString(0));
+			// init objectTable
+			tempObjectTable = new objectTable(temp);
+			this.systemObjectTable.add(tempObjectTable);
+		/*}*/
 
 		// flush system table to disk
 		return this.flushSystemTable();
@@ -2813,10 +2832,18 @@ public class virtualDisk {
 		int realBlockNum, realBlockOffset, index, lastIndex, n_block, classId;
 		classStruct classStruct;
 		ArrayList<Integer> lengthList, typeList;
+		ArrayList<Attribute> realAttributeList;
 		ArrayList<String> result, tupleBiPointerList;
 
 		classId = this.getClassId(this.currClassName);
 		classStruct = this.getClassStruct(this.currClassName);
+		/*// real-attr > 0
+		realAttributeList = this.getRealAttributeList(classStruct);
+		if ((realAttributeList == null) || (realAttributeList.size() == 0)) {
+			System.out.println("INFO: (in virtualDisk.Next) real-attr == 0!");
+			result = new ArrayList<String>();
+			return result;
+		}*/
 		// get first block
 		n_block = virtualDisk.MAX_INTEGER;
 		for (int i = 0; i < this.systemObjectTable.size() ; i++) {
@@ -3058,7 +3085,20 @@ public class virtualDisk {
 
 		return true;
 	}
-				
+
+	private static ArrayList<String> tupleCopy(ArrayList<String> src) {
+		ArrayList<String> target = new ArrayList<String>();
+
+		if (src == null) {
+			return null;
+		}
+
+		for (int i = 0; i < src.size(); i++) {
+			target.add(new String(src.get(i)));
+		}
+
+		return target;
+	}		
 
 	/*
 	 * insert tuple to class
@@ -3072,7 +3112,9 @@ public class virtualDisk {
 		int realBlockNum, realBlockOffset, index, n_block, classId;
 		classStruct classStruct;
 		String tupleBiPointer;
+		ArrayList<Attribute> realAttributeList;
 		ArrayList<Integer> lengthList, typeList;
+		ArrayList<String> tupleCopy;
 
 		// avoid className not match this.currClassName
 		this.flushToDisk();
@@ -3087,8 +3129,15 @@ public class virtualDisk {
 			System.err.println("ERROR: (in virtualDisk.insert) classStruct == null!");
 			return false;
 		}
+		/*// real-attr > 0
+		realAttributeList = this.getRealAttributeList(classStruct);
+		if ((realAttributeList == null) || (realAttributeList.size() == 0)) {
+			System.out.println("INFO: (in virtualDisk.insert) real-attr == 0!");
+			return true;
+		}*/
+		tupleCopy = virtualDisk.tupleCopy(tuple);
 		// remove first element from tuple
-		tupleBiPointer = tuple.remove(0);
+		tupleBiPointer = tupleCopy.remove(0);
 		// get first block
 		n_block = virtualDisk.MAX_INTEGER;
 		for (int i = 0; i < this.systemObjectTable.size() ; i++) {
@@ -3138,7 +3187,7 @@ public class virtualDisk {
 		}
 
 		// write tuple to vdisk
-		if (!this.writeOneTuple(lengthList, typeList, realBlockNum, realBlockOffset, tuple)) {
+		if (!this.writeOneTuple(lengthList, typeList, realBlockNum, realBlockOffset, tupleCopy)) {
 			System.out.println("ERROR: (in virtualDisk.insert) writeOneTuple fail!");
 			return false;
 		}
@@ -3167,16 +3216,23 @@ public class virtualDisk {
 		String tupleBiPointer;
 		classStruct classStruct;
 		ArrayList<Integer> lengthList, typeList;
-		ArrayList<String> oldTuple;
+		ArrayList<Attribute> realAttributeList;
+		ArrayList<String> oldTuple, tupleCopy;
 
 		classStruct = this.getClassStruct(this.currClassName);
 		if (classStruct == null) {
 			System.err.println("ERROR: (in virtualDisk.update) classStruct == null!");
 			return false;
 		}
-
+		/*// real-attr > 0
+		realAttributeList = this.getRealAttributeList(classStruct);
+		if ((realAttributeList == null) || (realAttributeList.size() == 0)) {
+			System.out.println("INFO: (in virtualDisk.update) real-attr == 0!");
+			return true;
+		}*/
+		tupleCopy = virtualDisk.tupleCopy(tuple);
 		// remove first element from tuple
-		tupleBiPointer = tuple.remove(0);
+		tupleBiPointer = tupleCopy.remove(0);
 		
 		// calculate offset & block
 		realBlockNum = this.fakeBlock2RealBlock();
@@ -3205,7 +3261,7 @@ public class virtualDisk {
 			return false;
 		}
 		// update tuple
-		if (!this.writeOneTuple(lengthList, typeList, realBlockNum, realBlockOffset, tuple)) {
+		if (!this.writeOneTuple(lengthList, typeList, realBlockNum, realBlockOffset, tupleCopy)) {
 			System.err.println("ERROR: (in virtualDisk.update) writeOneTuple(tuple) fail!");
 			return false;
 		}
@@ -3284,6 +3340,7 @@ public class virtualDisk {
 	public boolean delete() {
 		int index, n_block, classId;
 		classStruct classStruct;
+		ArrayList<Attribute> realAttributeList;
 
 		classId = this.getClassId(this.currClassName);
 		classStruct = this.getClassStruct(this.currClassName);
@@ -3291,6 +3348,12 @@ public class virtualDisk {
 			System.err.printf("ERROR: (in virtualDisk.delete) ((classStruct == null) || (classId(%d) == virtualDisk.MAX_INTEGER))!\n", classId);
 			return false;
 		}
+		/*// real-attr > 0
+		realAttributeList = this.getRealAttributeList(classStruct);
+		if ((realAttributeList == null) || (realAttributeList.size() == 0)) {
+			System.out.println("INFO: (in virtualDisk.delete) real-attr == 0!");
+			return true;
+		}*/
 		// get first block
 		n_block = virtualDisk.MAX_INTEGER;
 		for (int i = 0; i < this.systemObjectTable.size() ; i++) {
