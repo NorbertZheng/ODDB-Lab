@@ -2312,7 +2312,7 @@ public class virtualDisk {
 				attrId = this.getFreeId(virtualDisk.ATTRIBUTE_TABLE);
 				temp.add(Integer.toString(attrId));
 				temp.add(attribute.name);
-				temp.add(Integer.toString(Attribute.INT));
+				temp.add(Integer.toString(attribute.type));
 				temp.add(Integer.toString(attributeTable.isVirtual));
 				// init attributeTable
 				tempAttributeTable = new attributeTable(temp);
@@ -2732,7 +2732,7 @@ public class virtualDisk {
 	 *  tupleBiPointerList(ArrayList<String>)	: tupleBiPointerList
 	 */
 	private ArrayList<String> getTupleBiPointerList(classStruct classStruct, int objectId) {
-		int i, j, classId, deputyClassId;
+		int i, j, parentClassId, classId, deputyClassId;
 		biPointerTable tempBiPointerTable;
 		ArrayList<String> tupleBiPointerList = new ArrayList<String>();
 
@@ -2754,6 +2754,30 @@ public class virtualDisk {
 			return null;
 		}
 
+		// get parent biPointer
+		if ((classStruct.parent == null) || (classStruct.parent.equals(""))) {
+			// not find, add "-1"
+			tupleBiPointerList.add(Integer.toString(virtualDisk.DEFAULT_BIPOINTER));
+		} else {
+			parentClassId = this.getClassId(classStruct.parent);
+			if (parentClassId == virtualDisk.MAX_INTEGER) {
+				System.out.println("ERROR: (in virtualDisk.getTupleBiPointerList) (parentClassId == virtualDisk.MAX_INTEGER)!");
+				return null;
+			}
+			// get corresponding biPointer
+			for (j = 0; j < this.systemBiPointerTable.size(); j++) {
+				tempBiPointerTable = this.systemBiPointerTable.get(j);
+				if ((tempBiPointerTable.classId == parentClassId) && (tempBiPointerTable.deputyClassId == classId) && (tempBiPointerTable.deputyObjectId == objectId)) {
+					tupleBiPointerList.add(Integer.toString(tempBiPointerTable.objectId));
+					break;
+				}
+			}
+			if (j == this.systemBiPointerTable.size()) {
+				// not find, add "-1"
+				tupleBiPointerList.add(Integer.toString(virtualDisk.DEFAULT_BIPOINTER));
+			}
+		}
+
 		// get current children biPointer
 		for (i = 0; i < classStruct.children.size(); i++) {
 			deputyClassId = this.getClassId(classStruct.children.get(i));
@@ -2770,8 +2794,8 @@ public class virtualDisk {
 				}
 			}
 			if (j == this.systemBiPointerTable.size()) {
-				// not find, add ""
-				tupleBiPointerList.add("");
+				// not find, add "-1"
+				tupleBiPointerList.add(Integer.toString(virtualDisk.DEFAULT_BIPOINTER));
 			}
 		}
 
@@ -2943,7 +2967,7 @@ public class virtualDisk {
 		}
 		tupleBiPointerList = virtualDisk.decode(tupleBiPointer);
 		if (tupleBiPointerList.size() - 1 != classStruct.children.size()) {
-			System.out.println("ERROR: (in virtualDisk.updateBiPointerTable) (tupleBiPointerList.size() - 1 != classStruct.children.size())!");
+			System.out.printf("ERROR: (in virtualDisk.updateBiPointerTable) (tupleBiPointerList.size()(%d) - 1 != classStruct.children.size()(%d))!\n", tupleBiPointerList.size(), classStruct.children.size());
 			return false;
 		}
 		// get all childrenClassIdList
@@ -2989,13 +3013,15 @@ public class virtualDisk {
 				}
 			}
 			// no match, create a new biPointerTable
-			tempBiPointerTable = new biPointerTable();
-			tempBiPointerTable.classId = parentClassId;
-			tempBiPointerTable.objectId = parentObjectId;
-			tempBiPointerTable.deputyClassId = classId;
-			tempBiPointerTable.deputyObjectId = objectId;
+			if (parentObjectId != virtualDisk.DEFAULT_BIPOINTER) {
+				tempBiPointerTable = new biPointerTable();
+				tempBiPointerTable.classId = parentClassId;
+				tempBiPointerTable.objectId = parentObjectId;
+				tempBiPointerTable.deputyClassId = classId;
+				tempBiPointerTable.deputyObjectId = objectId;
 
-			this.systemBiPointerTable.add(tempBiPointerTable);
+				this.systemBiPointerTable.add(tempBiPointerTable);
+			}
 		}
 		for (i = 1; i < tupleBiPointerList.size(); i++) {
 			if (!virtualDisk.canParseInt(tupleBiPointerList.get(i))) {
@@ -3014,13 +3040,15 @@ public class virtualDisk {
 				}
 			}
 			// no match, create a new biPointerTable
-			tempBiPointerTable = new biPointerTable();
-			tempBiPointerTable.classId = classId;
-			tempBiPointerTable.objectId = objectId;
-			tempBiPointerTable.deputyClassId = childrenClassId;
-			tempBiPointerTable.deputyObjectId = deputyObjectId;
+			if (deputyObjectId != virtualDisk.DEFAULT_BIPOINTER) {
+				tempBiPointerTable = new biPointerTable();
+				tempBiPointerTable.classId = classId;
+				tempBiPointerTable.objectId = objectId;
+				tempBiPointerTable.deputyClassId = childrenClassId;
+				tempBiPointerTable.deputyObjectId = deputyObjectId;
 
-			this.systemBiPointerTable.add(tempBiPointerTable);
+				this.systemBiPointerTable.add(tempBiPointerTable);
+			}
 		}
 
 		if (!this.flushBiPointerTable()) {
