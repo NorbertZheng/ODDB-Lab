@@ -21,6 +21,13 @@ public class SQLExecutor {
 		super.finalize();
 	}
 
+	/*
+	 * evaluate SQLInstruction
+	 * @Args:
+	 *  SQLInstruction(SQLNode)		: SQL instruction
+	 * @Ret:
+	 *  result(ArrayList<String>)	: SQL instruction evaluate result
+	 */
 	public ArrayList<String> evaluate(SQLNode SQLInstruction) {
 		ArrayList<String> result;
 
@@ -62,6 +69,13 @@ public class SQLExecutor {
 		}
 	}
 
+	/*
+	 * execute CREATE_CLASS SQL instruction
+	 * @Args:
+	 *  None
+	 * @Ret:
+	 *  result(ArrayList<String>)	: CREATE_CLASS evaluate result
+	 */
 	private ArrayList<String> createClass() {
 		String className;
 		classStruct classStruct;
@@ -148,6 +162,13 @@ public class SQLExecutor {
 		return result;			
 	}
 
+	/*
+	 * execute CREATE_SELECT_DEPUTY_CLASS SQL instruction
+	 * @Args:
+	 *  None
+	 * @Ret:
+	 *  result(ArrayList<String>)	: CREATE_SELECT_DEPUTY_CLASS evaluate result
+	 */
 	private ArrayList<String> createSelectDeputyClass() {
 		int i, j, k, parentFakeOffset, fakeOffset;
 		String className, parentClassName;
@@ -415,6 +436,13 @@ public class SQLExecutor {
 		return result;
 	}
 
+	/*
+	 * init tuple data according to classStruct
+	 * @Args:
+	 *  classStruct(classStruct)	: classStruct of tuple's class
+	 * @Ret:
+	 *  tuple(ArrayList<String>)	: init tuple
+	 */
 	private ArrayList<String> initTuple(classStruct classStruct) {
 		Attribute attribute;
 		ArrayList<Attribute> realAttributeList;
@@ -451,6 +479,15 @@ public class SQLExecutor {
 		return tuple;
 	}
 
+	/*
+	 * test whether tuple is satisfied
+	 * @Args:
+	 *  condition(whereNode)		: condition which tuple has to satisfy
+	 *  classStruct(classStruct)	: classStruct of tuple's class
+	 *  tuple(ArrayList<String>)	: tuple data
+	 * @Ret:
+	 *  flag(boolean)				: whether tuple is satisfied
+	 */
 	private boolean tupleSatisfied(whereNode condition, classStruct classStruct, ArrayList<String> tuple) {
 		boolean result;
 		int i, j;
@@ -514,6 +551,13 @@ public class SQLExecutor {
 		return result;
 	}
 
+	/*
+	 * execute DROP_CLASS SQL instruction
+	 * @Args:
+	 *  None
+	 * @Ret:
+	 *  result(ArrayList<String>)	: DROP_CLASS evaluate result
+	 */
 	private ArrayList<String> dropClass() {
 		String className;
 		classStruct classStruct;
@@ -591,6 +635,13 @@ public class SQLExecutor {
 		return result;			
 	}
 
+	/*
+	 * execute INSERT_TUPLE SQL instruction
+	 * @Args:
+	 *  None
+	 * @Ret:
+	 *  result(ArrayList<String>)	: INSERT_TUPLE evaluate result
+	 */
 	private ArrayList<String> insertTuple() {
 		int i, j, fakeOffset, childrenFakeOffset;
 		String className;
@@ -760,6 +811,16 @@ public class SQLExecutor {
 		return result;
 	}
 
+	/*
+	 * help execute INSERT_TUPLE SQL instruction
+	 * @Args:
+	 *  classStruct(classStruct)			: classStruct of tuple's class
+	 *  tuple(ArrayList<String>)			: tuple to insert
+	 *  tupleBiPointer(ArrayList<String>)	: tuple's biPointer
+	 *  fakeOffset(int)						: tuple's fake offset
+	 * @Ret:
+	 *  flag(boolean)						: whether insert tuple successfully
+	 */
 	private boolean insertTupleHelper(classStruct classStruct, ArrayList<String> tuple, ArrayList<String> tupleBiPointer, int fakeOffset) {
 		int i, childrenFakeOffset;
 		classStruct childrenClassStruct;
@@ -832,6 +893,13 @@ public class SQLExecutor {
 		return true;
 	}
 
+	/*
+	 * copy one tuple
+	 * @Args:
+	 *  src(ArrayList<String>)		: src tuple
+	 * @Ret:
+	 *  target(ArrayList<String>)	: target tuple
+	 */
 	private static ArrayList<String> tupleCopy(ArrayList<String> src) {
 		ArrayList<String> target = new ArrayList<String>();
 
@@ -846,6 +914,13 @@ public class SQLExecutor {
 		return target;
 	}
 
+	/*
+	 * execute DELETE_TUPLE SQL instruction
+	 * @Args:
+	 *  None
+	 * @Ret:
+	 *  result(ArrayList<String>)	: DELETE_TUPLE evaluate result
+	 */
 	private ArrayList<String> deleteTuple() {
 		int i, j, fakeOffset;
 		String className;
@@ -945,6 +1020,15 @@ public class SQLExecutor {
 		return result;
 	}
 
+	/*
+	 * help execute DELETE_TUPLE SQL instruction
+	 * @Args:
+	 *  classStruct(classStruct)			: classStruct of tuple's clas
+	 *  tupleBiPointer(ArrayList<String>)	: tuple's biPointer
+	 *  fakeOffset(int)						: tuple's fake offset
+	 * @Ret:
+	 *  flag(boolean)						: whether delete tuple successfully
+	 */
 	private boolean deleteTupleHelper(classStruct classStruct, int fakeOffset, ArrayList<String> tupleBiPointer) {
 		int i, childrenFakeOffset;
 		classStruct childrenClassStruct;
@@ -1001,7 +1085,13 @@ public class SQLExecutor {
 		return true;
 	}
 			
-
+	/*
+	 * execute UPDATE_TUPLE SQL instruction
+	 * @Args:
+	 *  None
+	 * @Ret:
+	 *  result(ArrayList<String>)	: UPDATE_TUPLE evaluate result
+	 */
 	private ArrayList<String> updateTuple() {
 		int i, j, fakeOffset, childrenFakeOffset;
 		String className;
@@ -1300,6 +1390,13 @@ public class SQLExecutor {
 		return result;
 	}
 
+	/*
+	 * execute SELECT_TUPLE SQL instruction
+	 * @Args:
+	 *  None
+	 * @Ret:
+	 *  result(ArrayList<String>)	: SELECT_TUPLE evaluate result
+	 */
 	private ArrayList<String> selectTuple() {
 		int i, j, fakeOffset, childrenFakeOffset;
 		String className;
@@ -1458,6 +1555,15 @@ public class SQLExecutor {
 		return result;
 	}
 
+	/*
+	 * cross check tuple whether satisfied
+	 * @Args:
+	 *  condition(whereNode)		: condition to satisfy
+	 *  classStuct(classStruct)		: classStruct of tuple's class
+	 *  fakeOffset(int)				: tuple's fake offset
+	 * @Ret:
+	 *  flag(boolean)				: whether tuple satisfy condition
+	 */
 	private boolean crossTupleSatisfied(whereNode condition, classStruct classStruct, int fakeOffset) {
 		boolean result;
 		int i, j, k, l;
@@ -1503,11 +1609,28 @@ public class SQLExecutor {
 		return result;
 	}
 
+	/*
+	 * get v-attr's value
+	 * @Args:
+	 *  classStruct(classStruct)	: v-attr's class
+	 *  attributeName(String)		: v-attr's name
+	 * @Ret:
+	 *  result(ArrayList<String>)	: v-attr's value
+	 */
 	private ArrayList<String> virtualAttributeGetSource(classStruct classStruct, String attributeName) {
 		// TODO
 		return null;
 	}
 
+	/*
+	 * get attr's value
+	 * @Args:
+	 *  classStruct(classStruct)	: attr's class
+	 *  attributeName(String)		: attr's name
+	 *  fakeOffset(int)				: offset of attr's tuple
+	 * @Ret:
+	 *  result(ArrayList<String>)	: attr's value
+	 */
 	private ArrayList<String> attributeGetSource(classStruct classStruct, String attributeName, int fakeOffset) {
 		int i, j;
 		classStruct parentClassStruct;
@@ -1662,6 +1785,17 @@ public class SQLExecutor {
 		return null;
 	}
 
+	/*
+	 * cross get value
+	 * @Args:
+	 *  classStruct(classStruct)		: tuple's class
+	 *  identifier(String)				: attr's name
+	 *  fakeOffset(int)					: tuple's offset
+	 *  intMap(Map<String, Integer>)	: int map
+	 *  stringMap(Map<String, String>)	: string map
+	 * @Ret:
+	 *  flag(boolean)					: whether cross get value successfully
+	 */
 	private boolean crossGetValue(classStruct classStruct, String identifier, int fakeOffset,  Map<String, Integer> intMap, Map<String, String> stringMap) {
 		ArrayList<String> value;
 
@@ -1696,6 +1830,13 @@ public class SQLExecutor {
 		return true;
 	}	
 
+	/*
+	 * execute CROSS_SELECT_TUPLE SQL instruction
+	 * @Args:
+	 *  None
+	 * @Ret:
+	 *  result(ArrayList<String>)	: CROSS_SELECT_TUPLE evaluate result
+	 */
 	private ArrayList<String> crossSelectTuple() {
 		int i, j, k, fakeOffset, parentFakeOffset, targetFakeOffset;
 		String className, targetClassName, preTargetClassName;
@@ -1908,6 +2049,13 @@ public class SQLExecutor {
 		return result;
 	}
 
+	/*
+	 * convert tuple to string
+	 * @Args:
+	 *  tuple(ArrayList<String>)	: tuple
+	 * @Ret:
+	 *  result(String)				: corresponding string
+	 */
 	public static String tuple2String(ArrayList<String> tuple) {
 		String result = "";
 
